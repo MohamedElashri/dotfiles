@@ -1,4 +1,4 @@
-################################## ME HEP dotfiles ##################################
+################################## ME dotfiles ##################################
 
 
 
@@ -19,16 +19,31 @@ alias l.='ls -d .* --color=auto'
 alias mkdir='mkdir -p'
 alias t='tree -L 1'
 
+
+## Exit commands
+alias :q='exit'
+alias ext='exit'
+alias xt='exit'
+alias by='exit'
+alias bye='exit'
+alias die='exit'
+alias quit='exit'
+
 ## File Viewing and Editing
 alias zshrc='cat ~/.zshrc'
+alias nano='micro'
+alias zshconfig='nano ~/.zshrc'
 alias edit_zsh='vim ~/.zshrc' # Use vim as the default editor
 alias edit_zsh_code='code -r ~/.zshrc' # Edit with VSCode
 alias edit_zsh_insiders='code-insiders -r ~/.zshrc' # Edit with VSCode Insiders
 alias vim_rc='vim ~/.vimrc' # Quick access to vim config
+alias edit_host='sudo nano /etc/hosts'
+alias edit_nano='nano ~/.nanorc'
 alias vim_install='vim +PluginInstall +qall' # Install vim packages through vundle
 alias vim='nvim'
-alias nano='micro'
 alias vi='vim' # Set vi to open vim
+
+
 ## Process Management
 alias process='ps aux'
 alias process_user='ps -u $USER'
@@ -53,11 +68,40 @@ alias tmux_list='tmux ls' # list the active session
 alias tmux_kill='tmux kill-session -t'
 alias tmux_kill_all='pkill -f tmux' # kill all tmux processes
 
-## GNU Utilities
+## Utilities
 alias lt='ls --human-readable --size -1 -S --classify'
 alias ghist='history|grep' # find command in history
 alias count='find . -type f | wc -l' # count how many files in a directory
 alias cpv='rsync -ah --info=progress2' # copy progress bar
+alias restart_shell="exec ${SHELL} -l"
+alias path='echo -e ${PATH//:/\\n}'
+alias h='history'
+alias j='jobs -l'
+alias e='exit'
+alias stats='zsh_stats'
+alias mount='mount |column -t'
 
 
-################################## ME HEP dotfiles ##################################
+## Network
+alias ping='ping -c 5'
+alias wget='wget -c'
+alias ports='netstat -tulanp'
+alias myip='curl ifconfig.me && echo'
+
+
+## Github Copilot
+alias copilot='gh copilot'
+alias explain='gh copilot explain'
+alias suggest='gh copilot suggest'
+
+
+### Misc ###
+alias weather_cincy="curl https://wttr.in/Cincinnati | head -7" 
+alias weather_home="curl https://wttr.in/Al+Mansurah,+Egypt | head -7" 
+alias weather_cern="curl https://wttr.in/Geneva | head -7"
+alias emergency="gh emergency"
+alias depressed="gh emergency"
+alias tired="gh emergency"
+
+
+################################## ME dotfiles ##################################
