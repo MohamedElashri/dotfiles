@@ -39,16 +39,39 @@ check_file_exists() {
 }
 
 # Function to copy file to backup location
-# Takes the source file path and the target backup directory as arguments
 backup_file() {
     local file_path="$1"
     local backup_dir="$2"
-    local backup_path="$backup_dir/$(basename "$file_path")"  # Determine the target path for the backup
+    local backup_path="$backup_dir/$(basename "$file_path")"
+
+    log_info "Attempting to back up '$file_path' to '$backup_path'."
     
-    log_info "Copying '$file_path' to '$backup_path'."
-    cp "$file_path" "$backup_path" && \  # Copy the file and log the outcome
-    log_success "Successfully backed up '$file_path' to '$backup_path'." || \  # Log success or error
-    log_error "Failed to back up '$file_path'."
+    # Check if source file exists
+    if [ ! -f "$file_path" ]; then
+        log_error "Source file '$file_path' does not exist."
+        return 1
+    fi
+
+    # Check if we have read permissions on the source file
+    if [ ! -r "$file_path" ]; then
+        log_error "No read permission for '$file_path'."
+        return 1
+    fi
+
+    # Ensure the backup directory exists
+    mkdir -p "$backup_dir" || {
+        log_error "Failed to create backup directory '$backup_dir'."
+        return 1
+    }
+
+    # Attempt to copy the file
+    if cp "$file_path" "$backup_path"; then
+        log_success "Successfully backed up '$file_path' to '$backup_path'."
+        return 0
+    else
+        log_error "Failed to back up '$file_path' to '$backup_path'."
+        return 1
+    fi
 }
 
 # Main backup function
@@ -68,21 +91,20 @@ perform_backup() {
         ["$HOME/.zshrc"]="$backup_dir/zsh"  # Backup Zsh configuration
         ["$HOME"/*.zsh]="$backup_dir/zsh"  # Backup all .zsh files in the home directory
         ["$HOME/cli/*"]="$backup_dir/cli"  # Backup all files in the cli directory
+        ["$HOME/.zprofile"]="$backup_dir/zsh" # Backup .zprofile
     )
 
     # Loop through each file or directory and perform the backup
     for item in "${!backup_items[@]}"; do
         local target_dir="${backup_items[$item]}"
         log_info "Processing item '$item' with target directory '$target_dir'."
-        # Create target directory if it does not exist
-        mkdir -p "$target_dir" || { log_error "Failed to create target directory '$target_dir'"; continue; }
-        # Loop through each file that matches the pattern in item
+        
+        # Use globbing to handle wildcards
         for file in $item; do
-            log_info "Handling file '$file'."
             if [ -e "$file" ]; then
                 backup_file "$file" "$target_dir"
             else
-                log_warning "Item '$file' not found. Skipping."  # Log if the file does not exist
+                log_warning "Item '$file' not found. Skipping."
             fi
         done
     done
