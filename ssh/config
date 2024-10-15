@@ -76,21 +76,3 @@ Host sneezy-earth
     ProxyJump melashri@earth.phy.uc.edu:22
     ServerAliveInterval 600
     ServerAliveCountMax 240
-
-Host NY-MELASHRI
-    User melashri
-    HostName 66.94.110.168
-    Port 239
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveCountMax 240
-    ServerAliveInterval 120
-
-Host GE-MELASHRI
-    User melashri
-    HostName 185.182.187.198
-    Port 239
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveCountMax 240
-    ServerAliveInterval 120
