@@ -7,6 +7,8 @@ export ZSH="$HOME/.oh-my-zsh"
 ## Set name of the theme to load
 ZSH_THEME=""
 
+plugins=(git zsh-autosuggestions insult-zsh you-should-use adguard-helper)
+
 ## Source Oh My Zsh
 source $ZSH/oh-my-zsh.sh
 
@@ -14,6 +16,7 @@ source $ZSH/oh-my-zsh.sh
 if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
+
 
 ## Starship prompt
 if command -v starship &> /dev/null; then
@@ -42,7 +45,10 @@ if [[ $- == *i* && "$RUN_QURAN_VERSE_ON_STARTUP" == "true" ]]; then
 ~/cli/terminal_quran.sh
 fi
 
-# Install Ruby Gems to ~/gems
+## Install Ruby Gems to ~/gems
 export GEM_HOME="$HOME/gems"
 export PATH="$HOME/gems/bin:$PATH"
 
+
+## Add Rust Cargo to PATH
+export PATH="$PATH:$HOME/.cargo/bin"
