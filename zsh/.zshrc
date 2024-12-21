@@ -13,3 +13,4 @@ fi
 eval "$(atuin init zsh)"
 
 . "$HOME/.cargo/env"
+

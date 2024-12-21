@@ -1,35 +1,117 @@
+# Control settings for all connections
+ControlMaster auto
+ControlPath ~/.ssh/%r@%h:%p
+ControlPersist yes
+
+# Direct access to individual machines without ProxyJump
 Host sneezy
     User melashri
     HostName sneezy.geop.uc.edu
     Port 22
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
 
 Host sleepy
     User melashri
     HostName sleepy.geop.uc.edu
     Port 22
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
 
 Host goofy
     User melashri
     HostName goofy.geop.uc.edu
     Port 22
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
     ForwardX11 yes
     ForwardX11Trusted yes
-    ProxyJump melashri@earth.phy.uc.edu:22
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
 
 Host earth
     User melashri
     HostName earth.phy.uc.edu
     Port 22
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
     ForwardX11 yes
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
 
-Host *
-    IdentityAgent ~/.1password/agent.sock
-    AddKeysToAgent yes
-    ControlMaster auto
-    ControlPath ~/.ssh/%r@%h:%p
-    ControlPersist yes
+# Machines accessed via ProxyJump through earth
+Host sneezy-earth
+    User melashri
+    HostName sneezy.geop.uc.edu
+    Port 22
+    ProxyJump melashri@earth.phy.uc.edu:22
+    LocalForward 8965 localhost:8965
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardAgent yes
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
 
-# Entry for lxplus
+Host sleepy-earth
+    User melashri
+    HostName sleepy.geop.uc.edu
+    Port 22
+    ProxyJump melashri@earth.phy.uc.edu:22
+    LocalForward 8965 localhost:8965
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardAgent yes
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
+
+Host goofy-earth
+    User melashri
+    HostName goofy.geop.uc.edu
+    Port 22
+    ProxyJump melashri@earth.phy.uc.edu:22
+    LocalForward 8965 localhost:8965
+    PubkeyAuthentication no
+    PasswordAuthentication yes
+    PreferredAuthentications password
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardAgent yes
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ServerAliveInterval 600
+    ServerAliveCountMax 240
+
+# CERN-related configurations
 Host lxplus
     User melashri
     HostName lxplus.cern.ch
@@ -39,40 +121,23 @@ Host lxplus
     ServerAliveInterval 60
     ServerAliveCountMax 240
 
-# Entry for lbgw which is accessible via lxplus
 Host lbgw
     HostName lbgw
     User melashri
     Port 22
     ProxyJump lxplus
 
-# Entry for GPU server farm accessible via lbgw
 Host gpu
     HostName n4050101
     User melashri
     Port 22
     ProxyJump lbgw
 
-Host sleepy-earth
-    User melashri
-    HostName sleepy.geop.uc.edu
-    Port 22
-    LocalForward 8765 localhost:8765
-    ForwardAgent yes
+# General configuration for all other hosts
+Host *
+    IdentityAgent ~/.1password/agent.sock
+    AddKeysToAgent yes
     ForwardX11 yes
-    ForwardX11Trusted yes
-    ProxyJump melashri@earth.phy.uc.edu:22
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
-
-Host sneezy-earth
-    User melashri
-    HostName sneezy.geop.uc.edu
-    Port 22
-    LocalForward 8765 localhost:8765
     ForwardAgent yes
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ProxyJump melashri@earth.phy.uc.edu:22
-    ServerAliveInterval 600
     ServerAliveCountMax 240
+    ServerAliveInterval 60

@@ -5,7 +5,7 @@ export PATH=$HOME/.local/bin:$HOME/bin:$PATH
 export ZSH="$HOME/.oh-my-zsh"
 
 ## Set name of the theme to load
-ZSH_THEME=""
+ZSH_THEME="dracula-pro"
 
 plugins=(git zsh-autosuggestions insult-zsh you-should-use adguard-helper)
 
@@ -28,6 +28,12 @@ fi
 ## Atuin shell plugin
 eval "$(atuin init zsh)"
 
+
+## Go 
+export GOPATH=$HOME/go
+export GOROOT=/home/linuxbrew/.linuxbrew/Cellar/go/1.23.3/libexec
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+#export GO111MODULE=on
 
 ## nix 
 if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
