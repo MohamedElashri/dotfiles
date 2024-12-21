@@ -42,37 +42,45 @@ check_file_exists() {
 backup_file() {
     local file_path="$1"
     local backup_dir="$2"
-    local backup_path="$backup_dir/$(basename "$file_path")"
 
-    log_info "Attempting to back up '$file_path' to '$backup_path'."
-    
-    # Check if source file exists
-    if [ ! -f "$file_path" ]; then
-        log_error "Source file '$file_path' does not exist."
-        return 1
-    fi
+    log_info "Attempting to back up '$file_path' to '$backup_dir'."
 
-    # Check if we have read permissions on the source file
-    if [ ! -r "$file_path" ]; then
-        log_error "No read permission for '$file_path'."
-        return 1
-    fi
-
-    # Ensure the backup directory exists
-    mkdir -p "$backup_dir" || {
-        log_error "Failed to create backup directory '$backup_dir'."
-        return 1
-    }
-
-    # Attempt to copy the file
-    if cp "$file_path" "$backup_path"; then
-        log_success "Successfully backed up '$file_path' to '$backup_path'."
-        return 0
+    # Check if it's a directory
+    if [ -d "$file_path" ]; then
+        # Create the backup directory if it doesn't exist
+        mkdir -p "$backup_dir" || {
+            log_error "Failed to create backup directory '$backup_dir'."
+            return 1
+        }
+        
+        # Recursively copy directory contents
+        if rsync -a "$file_path/" "$backup_dir"; then
+            log_success "Successfully backed up directory '$file_path' to '$backup_dir'."
+            return 0
+        else
+            log_error "Failed to back up directory '$file_path' to '$backup_dir'."
+            return 1
+        fi
+    elif [ -f "$file_path" ]; then
+        # If it's a file, copy it
+        mkdir -p "$backup_dir" || {
+            log_error "Failed to create backup directory '$backup_dir'."
+            return 1
+        }
+        if cp "$file_path" "$backup_dir"; then
+            log_success "Successfully backed up file '$file_path' to '$backup_dir'."
+            return 0
+        else
+            log_error "Failed to back up file '$file_path' to '$backup_dir'."
+            return 1
+        fi
     else
-        log_error "Failed to back up '$file_path' to '$backup_path'."
+        log_warning "'$file_path' is neither a file nor a directory. Skipping."
         return 1
     fi
 }
+
+
 
 # Main backup function
 # Takes the backup directory as an argument and performs the backup process
@@ -92,7 +100,7 @@ perform_backup() {
         ["$HOME"/*.zsh]="$backup_dir/zsh"  # Backup all .zsh files in the home directory
         ["$HOME/cli/*"]="$backup_dir/cli"  # Backup all files in the cli directory
         ["$HOME/.zprofile"]="$backup_dir/zsh" # Backup .zprofile
-        ["$HOME/.waveterm/config/settings.json"]="$backup_dir/terminals/waveterm" # Backup .zprofile
+        ["$HOME/.waveterm/config"]="$backup_dir/terminals/waveterm/config" # Backup Waveterm directory
     )
 
     # Loop through each file or directory and perform the backup

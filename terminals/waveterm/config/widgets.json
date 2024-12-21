@@ -1,0 +1,26 @@
+{
+    "nmem": {
+        "icon": "ubuntu",
+        "color": "#70ac76",
+        "label": "nmem",
+        "blockdef": {
+            "meta": {
+                "view": "term",
+                "controller": "cmd",
+                "cmd": "nmem --watch"
+            }
+        }
+    },
+    "htop": {
+        "icon": "computer",
+        "color": "#c4958b",
+        "label": "htop",
+        "blockdef": {
+            "meta": {
+                "view": "term",
+                "controller": "cmd",
+                "cmd": "htop"
+            }
+        }
+    }
+}
