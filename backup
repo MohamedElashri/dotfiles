@@ -101,6 +101,7 @@ perform_backup() {
         ["$HOME/cli/*"]="$backup_dir/cli"  # Backup all files in the cli directory
         ["$HOME/.zprofile"]="$backup_dir/zsh" # Backup .zprofile
         ["$HOME/.waveterm/config"]="$backup_dir/terminals/waveterm/config" # Backup Waveterm directory
+        ["$HOME/.config/ghostty"]="$backup_dir/terminals/ghostty" # Backup Ghostty directory
     )
 
     # Loop through each file or directory and perform the backup
