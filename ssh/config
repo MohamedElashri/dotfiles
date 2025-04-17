@@ -65,7 +65,7 @@ Host sneezy-earth
     HostName sneezy.geop.uc.edu
     Port 22
     ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 8965 localhost:8965
+    LocalForward 8665 localhost:8665
     PubkeyAuthentication no
     PasswordAuthentication yes
     PreferredAuthentications password
@@ -82,7 +82,7 @@ Host sleepy-earth
     HostName sleepy.geop.uc.edu
     Port 22
     ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 8965 localhost:8965
+    LocalForward 8665 localhost:8665
     PubkeyAuthentication no
     PasswordAuthentication yes
     PreferredAuthentications password
@@ -99,7 +99,7 @@ Host goofy-earth
     HostName goofy.geop.uc.edu
     Port 22
     ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 8965 localhost:8965
+    LocalForward 8665 localhost:8665
     PubkeyAuthentication no
     PasswordAuthentication yes
     PreferredAuthentications password
@@ -120,6 +120,7 @@ Host lxplus
     ForwardAgent yes
     ServerAliveInterval 60
     ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
 
 Host lbgw
     HostName lbgw
