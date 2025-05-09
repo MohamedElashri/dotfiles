@@ -58,3 +58,23 @@ export PATH="$HOME/gems/bin:$PATH"
 
 ## Add Rust Cargo to PATH
 export PATH="$PATH:$HOME/.cargo/bin"
+
+##### Physics Tools #####
+
+# Physics environment
+# export PHYSICS_ROOT="$HOME/physics"
+
+# # Setup ROOT bindings
+# export PYTHONPATH=$(brew --prefix)/lib/python3.12/site-packages:$PYTHONPATH
+
+# # Setup PYTHIA environment
+# export PYTHIA8=$HOME/physics/pythia
+# export PATH=$PYTHIA8/bin:$PATH
+# export LD_LIBRARY_PATH=$PYTHIA8/lib:$LD_LIBRARY_PATH
+# export PYTHONPATH=$PYTHIA8/lib:$PYTHONPATH
+
+# # Setup FASTJET environment (optional)
+# export PATH=$HOME/physics/fastjet/bin:$PATH:$PATH
+# export LD_LIBRARY_PATH=$HOME/physics/fastjet/lib:$LD_LIBRARY_PATH
+# export PKG_CONFIG_PATH=$HOME/physics/fastjet/lib/pkgconfig:$PKG_CONFIG_PATH
+

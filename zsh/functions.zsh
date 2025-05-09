@@ -409,3 +409,37 @@ list_commands() {
   done
 }
 ########## Misc ##########
+
+
+
+######### Physics ########
+
+# Physics Environment Root
+# export PHYSICS_ROOT="$HOME/physics"
+
+# # Define activation function
+# activate-physics() {
+#     echo "Activating Physics Environment..."
+
+#     # Activate venv
+#     source "$PHYSICS_ROOT/venv-physics/bin/activate"
+
+#     # FastJet
+#     export PATH="$PHYSICS_ROOT/fastjet/bin:$PATH"
+#     export LD_LIBRARY_PATH="$PHYSICS_ROOT/fastjet/lib:$LD_LIBRARY_PATH"
+#     export PKG_CONFIG_PATH="$PHYSICS_ROOT/fastjet/lib/pkgconfig:$PKG_CONFIG_PATH"
+
+#     # Pythia
+#     export PYTHIA8="$PHYSICS_ROOT/pythia"
+#     export PATH="$PYTHIA8/bin:$PATH"
+#     export LD_LIBRARY_PATH="$PYTHIA8/lib:$LD_LIBRARY_PATH"
+#     export PYTHONPATH="$PYTHIA8/lib:$PYTHONPATH"
+
+#     # # Local ROOT
+#     # export ROOTSYS="$PHYSICS_ROOT/ROOT"
+#     # export PATH="$ROOTSYS/bin:$PATH"
+#     # export LD_LIBRARY_PATH="$ROOTSYS/lib:$LD_LIBRARY_PATH"
+#     # export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
+
+#     echo "Physics Environment Ready."
+# }
