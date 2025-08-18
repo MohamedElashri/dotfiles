@@ -14,3 +14,5 @@ eval "$(atuin init zsh)"
 
 . "$HOME/.cargo/env"
 
+
+[[ "$TERM_PROGRAM" == "kiro" ]] && . "$(kiro --locate-shell-integration-path zsh)"
