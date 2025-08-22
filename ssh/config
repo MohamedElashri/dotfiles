@@ -65,7 +65,7 @@ Host sneezy-earth
     HostName sneezy.geop.uc.edu
     Port 22
     ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 8665 localhost:8665
+    LocalForward 31417 localhost:31417
     PubkeyAuthentication no
     PasswordAuthentication yes
     PreferredAuthentications password
@@ -82,7 +82,7 @@ Host sleepy-earth
     HostName sleepy.geop.uc.edu
     Port 22
     ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 8665 localhost:8665
+    LocalForward 31418 localhost:31418
     PubkeyAuthentication no
     PasswordAuthentication yes
     PreferredAuthentications password
@@ -99,7 +99,7 @@ Host goofy-earth
     HostName goofy.geop.uc.edu
     Port 22
     ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 8665 localhost:8665
+    LocalForward 31419 localhost:31419
     PubkeyAuthentication no
     PasswordAuthentication yes
     PreferredAuthentications password
@@ -115,6 +115,16 @@ Host goofy-earth
 Host lxplus
     User melashri
     HostName lxplus.cern.ch
+    Port 22
+    ForwardX11 yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+Host lxplus-gpu
+    User melashri
+    HostName lxplus-gpu.cern.ch
     Port 22
     ForwardX11 yes
     ForwardAgent yes
