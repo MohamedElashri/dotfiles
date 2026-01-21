@@ -1,0 +1,133 @@
+#!/bin/bash
+
+# restore.sh - Restore dotfiles from this repository to $HOME
+# Place in root of your dotfiles repo
+
+set -euo pipefail
+
+# === Colors ===
+COLOR_RED="\033[0;31m"
+COLOR_GREEN="\033[0;32m"
+COLOR_YELLOW="\033[0;33m"
+COLOR_BLUE="\033[0;34m"
+COLOR_RESET="\033[0m"
+
+log_info()    { echo -e "${COLOR_BLUE}[INFO]${COLOR_RESET} $1"; }
+log_warn()    { echo -e "${COLOR_YELLOW}[WARN]${COLOR_RESET} $1"; }
+log_error()   { echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} $1"; }
+log_success() { echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $1"; }
+
+confirm() {
+    read -rp "$(echo -e "${COLOR_YELLOW}[?]${COLOR_RESET} $1 (y/N): ")" reply
+    [[ "$reply" =~ ^[Yy]$ ]]
+}
+
+check_deps() {
+    local deps=(rsync cp mkdir)
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            log_error "Missing required command: $dep"
+            exit 1
+        fi
+    done
+    log_success "Dependencies OK"
+}
+
+restore_path() {
+    local src="$1"
+    local dest="$2"
+
+    if [[ ! -e "$src" ]]; then
+        log_warn "Source not found: $src"
+        return 1
+    fi
+
+    local parent_dir
+    parent_dir="$(dirname "$dest")"
+    mkdir -p "$parent_dir"
+
+    if [[ -e "$dest" ]]; then
+        if ! confirm "Target exists: $dest — overwrite?"; then
+            log_info "Skipped: $dest"
+            return 0
+        fi
+    fi
+
+    if [[ -d "$src" ]]; then
+        if rsync -a --delete "$src/" "$dest/"; then
+            log_success "Restored dir: $src → $dest"
+        else
+            log_error "Failed to restore dir: $src"
+        fi
+    else
+        if cp "$src" "$dest"; then
+            log_success "Restored file: $src → $dest"
+        else
+            log_error "Failed to restore file: $src"
+        fi
+    fi
+}
+
+main() {
+    local repo_root
+    repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    log_info "Repo root: $repo_root"
+    check_deps
+
+    if ! confirm "Restore dotfiles from this repo to your home directory?"; then
+        log_info "Aborted by user."
+        exit 0
+    fi
+
+    # --- SSH ---
+    if [[ -f "$repo_root/ssh/config" ]]; then
+        restore_path "$repo_root/ssh/config" "$HOME/.ssh/config"
+    fi
+
+    # --- Git ---
+    if [[ -f "$repo_root/git/.gitconfig" ]]; then
+        restore_path "$repo_root/git/.gitconfig" "$HOME/.gitconfig"
+    fi
+    if [[ -f "$repo_root/git/.stCommitMsg" ]]; then
+        restore_path "$repo_root/git/.stCommitMsg" "$HOME/.stCommitMsg"
+    fi
+
+    # --- Zsh: explicit hidden config files ---
+    if [[ -f "$repo_root/zsh/.zshrc" ]]; then
+        restore_path "$repo_root/zsh/.zshrc" "$HOME/.zshrc"
+    fi
+    if [[ -f "$repo_root/zsh/.zprofile" ]]; then
+        restore_path "$repo_root/zsh/.zprofile" "$HOME/.zprofile"
+    fi
+
+    # --- Zsh: modular *.zsh files (non-hidden) → go to $HOME directly ---
+    # Enable globbing for existing files only
+    shopt -s nullglob
+    for zsh_file in "$repo_root"/zsh/*.zsh; do
+        if [[ -f "$zsh_file" ]]; then
+            filename=$(basename "$zsh_file")
+            restore_path "$zsh_file" "$HOME/$filename"
+        fi
+    done
+    shopt -u nullglob
+
+    # --- CLI scripts ---
+    if [[ -d "$repo_root/cli" ]] && [[ -n "$(ls -A "$repo_root/cli" 2>/dev/null)" ]]; then
+        restore_path "$repo_root/cli" "$HOME/cli"
+    fi
+
+    # --- Terminals ---
+    if [[ -d "$repo_root/terminals/ghostty" ]]; then
+        restore_path "$repo_root/terminals/ghostty" "$HOME/.config/ghostty"
+    fi
+
+    if [[ -d "$repo_root/terminals/waveterm/config" ]]; then
+        restore_path "$repo_root/terminals/waveterm/config" "$HOME/.waveterm/config"
+    fi
+
+    log_success "Dotfile restoration complete!"
+    log_info "Run 'exec zsh' or restart your terminal to apply changes."
+}
+
+main "$@"
