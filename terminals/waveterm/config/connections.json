@@ -1,5 +1,7 @@
 {
-  "melashri@sleepy-earth": {},
+  "melashri@sleepy-earth": {
+    "conn:wshenabled": false
+  },
   "melashri@sneezy-earth": {
     "conn:wshenabled": false
   }
