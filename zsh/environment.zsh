@@ -7,7 +7,7 @@ export ZSH="$HOME/.oh-my-zsh"
 ## Set name of the theme to load
 ZSH_THEME="dracula-pro"
 
-plugins=(git zsh-autosuggestions insult-zsh you-should-use adguard-helper)
+plugins=(git zsh-autosuggestions you-should-use adguard-helper)
 
 ## Source Oh My Zsh
 source $ZSH/oh-my-zsh.sh
@@ -26,8 +26,8 @@ else
 fi
 
 ## Atuin shell plugin
+. "$HOME/.atuin/bin/env"
 eval "$(atuin init zsh)"
-
 
 ## Go 
 export GOPATH=$HOME/go
