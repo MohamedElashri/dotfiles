@@ -6,6 +6,7 @@ shell-integration = zsh
 fullscreen = false
 scrollback-limit = 100000
 wait-after-command = true
+shell-integration-features = ssh-env,ssh-terminfo
 
 # ----------------------------------------
 # Theme
@@ -50,7 +51,7 @@ cursor-style-blink = false
 #font-family-italic = Ubuntu Mono Italic
 #font-family-bold-italic = Ubuntu Mono Bold Italic
 
-font-size = 14
+font-size = 12
 adjust-underline-position = 4
 
 # ----------------------------------------

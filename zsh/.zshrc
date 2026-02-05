@@ -28,3 +28,7 @@ fi
 if [[ -f "$HOME/.cargo/env" ]]; then
   source "$HOME/.cargo/env"
 fi
+
+## Atuin shell plugin
+. "$HOME/.atuin/bin/env"
+eval "$(atuin init zsh)"

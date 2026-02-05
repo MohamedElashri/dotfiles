@@ -18,20 +18,17 @@ if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
 fi
 
 
-## Starship prompt
-if command -v starship &> /dev/null; then
-    eval "$(starship init zsh)"
-else
-    echo "Starship is not installed or not in PATH. Please install it or add it to your PATH."
-fi
+# ## Starship prompt
+# if command -v starship &> /dev/null; then
+#     eval "$(starship init zsh)"
+# else
+#     echo "Starship is not installed or not in PATH. Please install it or add it to your PATH."
+# fi
 
-## Atuin shell plugin
-. "$HOME/.atuin/bin/env"
-eval "$(atuin init zsh)"
 
 ## Go 
 export GOPATH=$HOME/go
-export GOROOT=/home/linuxbrew/.linuxbrew/Cellar/go/1.23.4/libexec
+export GOROOT=/home/linuxbrew/.linuxbrew/Cellar/go/1.25.6/libexec
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 #export GO111MODULE=on
 
@@ -58,6 +55,10 @@ export PATH="$HOME/gems/bin:$PATH"
 
 ## Add Rust Cargo to PATH
 export PATH="$PATH:$HOME/.cargo/bin"
+
+# ## Atuin shell plugin
+# . "$HOME/.atuin/bin/env"
+# eval "$(atuin init zsh)"
 
 ##### Physics Tools #####
 

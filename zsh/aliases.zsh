@@ -107,6 +107,6 @@ alias weather_cern="curl https://wttr.in/Geneva | head -7"
 alias emergency="gh emergency"
 alias depressed="gh emergency"
 alias tired="gh emergency"
-
+alias fix-docker='exec newgrp docker'
 
 ################################## ME dotfiles ##################################
