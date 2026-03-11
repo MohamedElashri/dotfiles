@@ -106,41 +106,5 @@
         "cmd": "/usr/bin/env zsh -lic 'if command -v curl >/dev/null 2>&1; then watch -n1800 \"curl -s wttr.in/Geneva?format=3\"; else echo \"curl not found.\"; fi'"
       }
     }
-  },
-  "updates": {
-    "icon": "refresh-cw",
-    "color": "#5dade2",
-    "label": "updates",
-    "blockdef": {
-      "meta": {
-        "view": "term",
-        "controller": "cmd",
-        "cmd": "/usr/bin/env zsh -lic 'if command -v apt >/dev/null 2>&1; then apt list --upgradable 2>/dev/null | head -n 20; elif command -v dnf >/dev/null 2>&1; then dnf check-update || true; elif command -v brew >/dev/null 2>&1; then brew outdated; else echo \"No package manager detected.\"; fi'"
-      }
-    }
-  },
-  "services": {
-    "icon": "settings",
-    "color": "#f39c12",
-    "label": "services",
-    "blockdef": {
-      "meta": {
-        "view": "term",
-        "controller": "cmd",
-        "cmd": "/usr/bin/env zsh -lic 'if command -v systemctl >/dev/null 2>&1; then systemctl --failed --no-pager; else echo \"systemctl not found.\"; fi'"
-      }
-    }
-  },
-  "ports": {
-    "icon": "network",
-    "color": "#9b59b6",
-    "label": "ports",
-    "blockdef": {
-      "meta": {
-        "view": "term",
-        "controller": "cmd",
-        "cmd": "/usr/bin/env zsh -lic 'if command -v ss >/dev/null 2>&1; then watch -n5 \"ss -tulpn | awk \\\"BEGIN {printf \\\"%-5s %-25s %s\\\\n\\\", \\\"Proto\\\", \\\"Local-Address:Port\\\", \\\"Program\\\"} NR>1 {printf \\\"%-5s %-25s %s\\\\n\\\", $1, $5, $7}\\\"\"; elif command -v netstat >/dev/null 2>&1; then watch -n5 \"netstat -tulpn | awk \\\"BEGIN {printf \\\"%-5s %-25s %s\\\\n\\\", \\\"Proto\\\", \\\"Local-Address:Port\\\", \\\"Program\\\"} NR>2 {printf \\\"%-5s %-25s %s\\\\n\\\", $1, $4, $7}\\\"\"; else echo \"No ss/netstat found.\"; fi'"
-      }
-    }
   }
 }
