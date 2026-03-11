@@ -32,3 +32,5 @@ fi
 ## Atuin shell plugin
 . "$HOME/.atuin/bin/env"
 eval "$(atuin init zsh)"
+
+export PATH="/home/melashri/.pixi/bin:$PATH"

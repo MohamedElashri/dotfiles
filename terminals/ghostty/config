@@ -82,3 +82,9 @@ window-inherit-font-size = true
 auto-update = check
 auto-update-channel = stable
 
+
+# ----------------------------------------
+# shortcuts
+# ----------------------------------------
+keybind = ctrl+shift+x=close_surface
+

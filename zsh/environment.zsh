@@ -28,7 +28,7 @@ fi
 
 ## Go 
 export GOPATH=$HOME/go
-export GOROOT=/home/linuxbrew/.linuxbrew/Cellar/go/1.25.6/libexec
+export GOROOT="$(brew --prefix go)/libexec"
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 #export GO111MODULE=on
 
@@ -55,6 +55,11 @@ export PATH="$HOME/gems/bin:$PATH"
 
 ## Add Rust Cargo to PATH
 export PATH="$PATH:$HOME/.cargo/bin"
+
+## TeX Live 2026
+export PATH=/usr/local/texlive/2026/bin/x86_64-linux:$PATH
+export MANPATH=/usr/local/texlive/2026/texmf-dist/doc/man:$MANPATH
+export INFOPATH=/usr/local/texlive/2026/texmf-dist/doc/info:$INFOPATH
 
 # ## Atuin shell plugin
 # . "$HOME/.atuin/bin/env"

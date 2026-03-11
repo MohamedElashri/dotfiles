@@ -1,6 +1,6 @@
 [user]
     name = MohamedElashri
-    email = mail@elashri.com
+	email = git@elashri.com
     signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILVhMqBTTTp0eNRsbraLX1f65LPNezRcG0ZJyxQt1k9A
 
 [credential]
