@@ -1,4 +1,3 @@
-
 # Source additional configuration files
 for config_file in ~/environment.zsh ~/aliases.zsh ~/config.zsh ~/functions.zsh ~/tricks.zsh; do
     if [[ -f "$config_file" ]]; then
@@ -34,3 +33,7 @@ fi
 eval "$(atuin init zsh)"
 
 export PATH="/home/melashri/.pixi/bin:$PATH"
+
+
+# Added by txm
+fpath+=~/.zfunc

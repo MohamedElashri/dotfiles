@@ -1,44 +1,14 @@
-# Control settings for all connections
-ControlMaster auto
-ControlPath ~/.ssh/%r@%h:%p
-ControlPersist yes
+# =========================
+# UC / GEOP / PHY hosts
+# =========================
 
-# Direct access to individual machines without ProxyJump
-Host sneezy
+Host earth sneezy sleepy goofy
     User melashri
-    HostName sneezy.geop.uc.edu
     Port 22
     PubkeyAuthentication no
     PasswordAuthentication yes
-    PreferredAuthentications password
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
-
-Host sleepy
-    User melashri
-    HostName sleepy.geop.uc.edu
-    Port 22
-    PubkeyAuthentication no
-    PasswordAuthentication yes
-    PreferredAuthentications password
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
-
-Host goofy
-    User melashri
-    HostName goofy.geop.uc.edu
-    Port 22
-    PubkeyAuthentication no
-    PasswordAuthentication yes
-    PreferredAuthentications password
+    KbdInteractiveAuthentication yes
+    PreferredAuthentications password,keyboard-interactive
     IdentitiesOnly yes
     IdentityAgent none
     ForwardX11 yes
@@ -47,90 +17,79 @@ Host goofy
     ServerAliveCountMax 240
 
 Host earth
-    User melashri
     HostName earth.phy.uc.edu
-    Port 22
-    PubkeyAuthentication no
-    PasswordAuthentication yes
-    PreferredAuthentications password
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardX11 yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
+    ForwardX11Trusted no
+    ControlMaster no
+    ControlPath none
+    ForwardAgent no
 
-# Machines accessed via ProxyJump through earth
-Host sneezy-earth
-    User melashri
+Host sneezy
     HostName sneezy.geop.uc.edu
+
+Host sleepy
+    HostName sleepy.geop.uc.edu
+
+Host goofy
+    HostName goofy.geop.uc.edu
+
+
+# =========================
+# GEOP hosts via earth
+# Keep mux disabled here to avoid ProxyJump hangs
+# =========================
+
+Host sneezy-earth sleepy-earth goofy-earth
+    User melashri
     Port 22
-    ProxyJump melashri@earth.phy.uc.edu:22
-    LocalForward 31417 localhost:31417
+    ProxyJump earth
     PubkeyAuthentication no
     PasswordAuthentication yes
-    PreferredAuthentications password
+    KbdInteractiveAuthentication yes
+    PreferredAuthentications password,keyboard-interactive
     IdentitiesOnly yes
     IdentityAgent none
-    ForwardAgent yes
+    ForwardAgent no
     ForwardX11 yes
     ForwardX11Trusted yes
     ServerAliveInterval 600
     ServerAliveCountMax 240
+    ControlMaster no
+    ControlPath none
+
+Host sneezy-earth
+    HostName sneezy.geop.uc.edu
+    LocalForward 31417 localhost:31417
 
 Host sleepy-earth
-    User melashri
     HostName sleepy.geop.uc.edu
-    Port 22
-    ProxyJump melashri@earth.phy.uc.edu:22
     LocalForward 31418 localhost:31418
-    PubkeyAuthentication no
-    PasswordAuthentication yes
-    PreferredAuthentications password
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardAgent yes
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host goofy-earth
-    User melashri
     HostName goofy.geop.uc.edu
-    Port 22
-    ProxyJump melashri@earth.phy.uc.edu:22
     LocalForward 31419 localhost:31419
-    PubkeyAuthentication no
-    PasswordAuthentication yes
-    PreferredAuthentications password
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardAgent yes
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
-# CERN-related configurations
-Host lxplus
+
+# =========================
+# CERN
+# =========================
+
+Host lxplus lxplus-gpu aiadm
     User melashri
-    HostName lxplus.cern.ch
     Port 22
     ForwardX11 yes
     ForwardAgent yes
     ServerAliveInterval 60
     ServerAliveCountMax 240
     SetEnv TERM=xterm-256color
+
+Host lxplus
+    HostName lxplus.cern.ch
 
 Host lxplus-gpu
-    User melashri
     HostName lxplus-gpu.cern.ch
-    Port 22
-    ForwardX11 yes
-    ForwardAgent yes
-    ServerAliveInterval 60
-    ServerAliveCountMax 240
-    SetEnv TERM=xterm-256color
+
+Host aiadm
+    HostName aiadm.cern.ch
 
 Host lbgw
     HostName lbgw
@@ -144,9 +103,14 @@ Host gpu
     Port 22
     ProxyJump lbgw
 
-Host aiadm
+
+# =========================
+# LHCb Online / Point 8
+# =========================
+
+Host lxtunnel
+    HostName lxtunnel.cern.ch
     User melashri
-    HostName aiadm.cern.ch
     Port 22
     ForwardX11 yes
     ForwardAgent yes
@@ -154,111 +118,168 @@ Host aiadm
     ServerAliveCountMax 240
     SetEnv TERM=xterm-256color
 
-# Tailscale network hosts
+Host lbgw-online lbgw.cern.ch
+    HostName lbgw.cern.ch
+    User melashri
+    Port 22
+    ProxyJump lxtunnel
+    ForwardX11 yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+Host *.lbdaq.cern.ch
+    User melashri
+    Port 22
+    ProxyJump lbgw-online
+    ForwardX11 yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+Host lbfwd
+    HostName lxtunnel.cern.ch
+    User melashri
+    Port 22
+    LocalForward 127.0.0.1:33898 lbui-misc.cern.ch:3389
+    ExitOnForwardFailure yes
+    RequestTTY yes
+    RemoteCommand echo 'Connection successful. Keep this terminal open. Press Enter to disconnect.'; read -s
+    ForwardX11 no
+    ForwardAgent no
+    ControlMaster no
+    ControlPath none
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    
+# --------------------------------------------------------
+# CX / CODEX Online hosts
+# --------------------------------------------------------
+
+Host cxeb01
+    HostName cxeb01.lbdaq.cern.ch
+    User melashri
+    Port 22
+    ProxyJump lbgw-online
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+Host cxhv01
+    HostName cxhv01.lbdaq.cern.ch
+    User melashri
+    Port 22
+    ProxyJump lbgw-online
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+Host cxdaqtell01
+    HostName cxdaqtell01.lbdaq.cern.ch
+    User melashri
+    Port 22
+    ProxyJump lbgw-online
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+Host cxecs01
+    HostName cxecs01.lbdaq.cern.ch
+    User melashri
+    Port 22
+    ProxyJump lbgw-online
+    ForwardX11 yes
+    ForwardX11Trusted yes
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 240
+    SetEnv TERM=xterm-256color
+
+
+# =========================
+# Tailscale / VPS / home lab
+# =========================
 
 Host dimna
     User melashri
     HostName 100.64.0.6
     Port 239
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host kalila
     User ubuntu
     HostName 132.145.174.25
     Port 239
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host labid
     User ubuntu
     HostName 100.64.0.9
     Port 239
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
-
 
 Host muhajir
     User admin
     HostName 100.64.0.12
     Port 22
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host jalila
     User root
     HostName 100.64.0.13
     Port 22
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host qais
     User root
     HostName 100.64.0.14
     Port 22
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host zuhair
     User root
     HostName 100.64.0.15
     Port 22
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host farabi
     User melashri
     HostName 100.64.0.16
     Port 22
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host rushd
     User melashri
     HostName 100.64.0.17
     Port 239
-    ForwardX11 yes
-    ForwardX11Trusted yes
-    ServerAliveInterval 600
-    ServerAliveCountMax 240
 
 Host jarir
     User melashri
     HostName 100.64.0.18
     Port 239
+
+Host dimna kalila labid muhajir jalila qais zuhair farabi rushd jarir
     ForwardX11 yes
     ForwardX11Trusted yes
     ServerAliveInterval 600
     ServerAliveCountMax 240
-    
-Host ocid1.*
-    ControlMaster no
-
-Host *.oci.oraclecloud.com
-    ControlMaster no
 
 
-# General configuration for all other hosts
+# =========================
+# General defaults
+# Put broad rules last because first value wins
+# =========================
+
 Host *
     IdentityAgent ~/.1password/agent.sock
     AddKeysToAgent yes
     ForwardX11 yes
     ForwardAgent yes
-    ServerAliveCountMax 240
     ServerAliveInterval 60
+    ServerAliveCountMax 240
+    ControlMaster auto
+    ControlPath ~/.ssh/%r@%h:%p
+    ControlPersist yes

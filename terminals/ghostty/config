@@ -4,7 +4,7 @@
 title = Terminal
 shell-integration = zsh
 fullscreen = false
-scrollback-limit = 100000
+scrollback-limit = 4294967295
 wait-after-command = true
 shell-integration-features = ssh-env,ssh-terminfo
 
@@ -73,7 +73,7 @@ window-width = 80
 window-theme = dark
 window-decoration = true
 window-inherit-font-size = true
-
+resize-overlay = never
 
 # ----------------------------------------
 # Updates
