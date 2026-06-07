@@ -1,5 +1,10 @@
-# Desired Oh My Zsh plugins.
-#
-# .zshrc filters this list against the plugins actually installed on the
-# current machine, so missing optional plugins do not break shell startup.
-DOTFILES_OMZ_PLUGINS=(git zsh-autosuggestions you-should-use adguard-helper)
+# Compatibility wrapper for older installs that source ~/plugins.zsh.
+
+_dotfiles_zsh_dir="${DOTFILES_ZSH_DIR:-$HOME/.config/dotfiles/zsh}"
+if [[ ! -d "$_dotfiles_zsh_dir/core" ]]; then
+  _dotfiles_zsh_dir="${${(%):-%N}:A:h}"
+fi
+
+[[ -r "$_dotfiles_zsh_dir/core/30-plugins.zsh" ]] && source "$_dotfiles_zsh_dir/core/30-plugins.zsh"
+
+unset _dotfiles_zsh_dir

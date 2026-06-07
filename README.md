@@ -65,8 +65,11 @@ not installed by `bootstrap.sh` or `restore`.
 - `zsh/.zshenv`: minimal zsh setup loaded by every zsh process
 - `zsh/.zprofile`: zsh login-shell setup
 - `zsh/.zshrc`: interactive zsh setup
-- `zsh/environment.zsh`: shared PATH and exported toolchain variables
-- `zsh/plugins.zsh`: desired Oh My Zsh plugins; missing plugins are skipped
+- `zsh/core/`: PATH, options, completion, and Oh My Zsh setup
+- `zsh/aliases/`: simple aliases grouped by domain
+- `zsh/functions/`: shell functions grouped by domain
+- `zsh/integrations/`: optional external tool hooks
+- `zsh/*.zsh`: compatibility wrappers for older installs
 - `bash/.bashrc`: interactive bash setup
 - `sh/.profile`: POSIX login-shell setup
 - `cli/`: user scripts restored to `~/cli`
@@ -74,3 +77,7 @@ not installed by `bootstrap.sh` or `restore`.
 The zsh config skips missing tools and paths. For example, missing `nvm`,
 Homebrew, TeX Live, Starship, Atuin, or optional Oh My Zsh plugins should not
 break startup.
+
+`restore` installs the zsh module directories under
+`~/.config/dotfiles/zsh/`. In `--link` mode they point back to this repository;
+in `--copy` mode they are copied into place.

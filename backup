@@ -53,8 +53,9 @@ backup_file() {
             return 1
         }
         
-        # Recursively copy directory contents
-        if rsync -a "$file_path/" "$backup_dir"; then
+        # Recursively copy directory contents. -L dereferences symlinks so a
+        # snapshot made after `restore --link` still contains real files.
+        if rsync -aL "$file_path/" "$backup_dir"; then
             log_success "Successfully backed up directory '$file_path' to '$backup_dir'."
             return 0
         else
@@ -67,7 +68,7 @@ backup_file() {
             log_error "Failed to create backup directory '$backup_dir'."
             return 1
         }
-        if cp "$file_path" "$backup_dir"; then
+        if cp -L "$file_path" "$backup_dir"; then
             log_success "Successfully backed up file '$file_path' to '$backup_dir'."
             return 0
         else
@@ -101,6 +102,7 @@ perform_backup() {
         ["$HOME/.zshenv"]="$backup_dir/zsh"  # Backup minimal Zsh environment
         ["$HOME/.zshrc"]="$backup_dir/zsh"  # Backup Zsh configuration
         ["$HOME"/*.zsh]="$backup_dir/zsh"  # Backup all .zsh files in the home directory
+        ["$HOME/.config/dotfiles/zsh"]="$backup_dir/dotfiles/zsh"  # Backup installed Zsh modules
         ["$HOME/cli/*"]="$backup_dir/cli"  # Backup all files in the cli directory
         ["$HOME/.zprofile"]="$backup_dir/zsh" # Backup .zprofile
         ["$HOME/.waveterm/config"]="$backup_dir/terminals/waveterm/config" # Backup Waveterm directory

@@ -229,7 +229,14 @@ restore_all() {
     restore_path "$repo_root/zsh/.zprofile" "$HOME/.zprofile"
     restore_path "$repo_root/zsh/.zshrc" "$HOME/.zshrc"
 
+    # Zsh module directories used by .zshrc.
+    restore_path "$repo_root/zsh/core" "$HOME/.config/dotfiles/zsh/core"
+    restore_path "$repo_root/zsh/aliases" "$HOME/.config/dotfiles/zsh/aliases"
+    restore_path "$repo_root/zsh/functions" "$HOME/.config/dotfiles/zsh/functions"
+    restore_path "$repo_root/zsh/integrations" "$HOME/.config/dotfiles/zsh/integrations"
+
     # Zsh modular files go directly under $HOME.
+    # These are compatibility wrappers for older setups that source them.
     shopt -s nullglob
     for zsh_file in "$repo_root"/zsh/*.zsh; do
         filename="$(basename "$zsh_file")"

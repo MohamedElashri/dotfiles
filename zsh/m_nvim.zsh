@@ -1,19 +1,10 @@
-# Neovim Switcher configuration
-alias nvim-lazy="NVIM_APPNAME=LazyVim nvim"
-alias nvim-kick="NVIM_APPNAME=kickstart nvim"
-alias nvim-chad="NVIM_APPNAME=NvChad nvim"
-alias nvim-astro="NVIM_APPNAME=AstroNvim nvim"
+# Compatibility wrapper for older installs that source ~/m_nvim.zsh.
 
-function nvims() {
-  items=("default" "kickstart" "LazyVim" "NvChad" "AstroNvim")
-  config=$(printf "%s\n" "${items[@]}" | fzf --prompt=" Neovim Config  " --height=50% --layout=reverse --border --exit-0)
-  if [[ -z $config ]]; then
-    echo "Nothing selected"
-    return 0
-  elif [[ $config == "default" ]]; then
-    config=""
-  fi
-  NVIM_APPNAME=$config nvim $@
-}
+_dotfiles_zsh_dir="${DOTFILES_ZSH_DIR:-$HOME/.config/dotfiles/zsh}"
+if [[ ! -d "$_dotfiles_zsh_dir/integrations" ]]; then
+  _dotfiles_zsh_dir="${${(%):-%N}:A:h}"
+fi
 
-bindkey -s "^a" "nvims\n"
+[[ -r "$_dotfiles_zsh_dir/integrations/50-neovim.zsh" ]] && source "$_dotfiles_zsh_dir/integrations/50-neovim.zsh"
+
+unset _dotfiles_zsh_dir
