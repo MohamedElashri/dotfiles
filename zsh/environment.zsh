@@ -1,69 +1,108 @@
-## Ensure ~/.local/bin is in PATH
-export PATH=$HOME/.local/bin:$HOME/bin:$PATH
+# Shared zsh environment.
+#
+# Keep this file limited to PATH entries and exported toolchain variables.
+# Interactive frameworks and hooks belong in .zshrc so scripts and subshells do
+# not pay for prompt/history/plugin setup.
 
-## Path to Oh My Zsh installation.
-export ZSH="$HOME/.oh-my-zsh"
+typeset -gaU path
 
-## Set name of the theme to load
-ZSH_THEME="dracula-pro"
+_path_prepend() {
+  local dir
+  for dir in "$@"; do
+    [[ -d "$dir" ]] || continue
+    path=("$dir" "${path[@]:#$dir}")
+  done
+}
 
-plugins=(git zsh-autosuggestions you-should-use adguard-helper)
+_path_append() {
+  local dir
+  for dir in "$@"; do
+    [[ -d "$dir" ]] || continue
+    path=("${path[@]:#$dir}" "$dir")
+  done
+}
 
-## Source Oh My Zsh
-source $ZSH/oh-my-zsh.sh
+_pathvar_prepend() {
+  local var_name="$1"
+  local dir="$2"
+  local current="${(P)var_name}"
 
-## Linuxbrew
-if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  [[ -d "$dir" ]] || return
+  case ":$current:" in
+    *":$dir:"*) ;;
+    *) export "$var_name=$dir:$current" ;;
+  esac
+}
+
+# User-local command paths.
+_path_prepend "$HOME/.local/bin" "$HOME/bin"
+
+# Linuxbrew without running `brew shellenv` on every shell startup.
+if [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
+  export HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
+  export HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
+  export HOMEBREW_REPOSITORY="$HOMEBREW_PREFIX/Homebrew"
+  _path_prepend "$HOMEBREW_PREFIX/bin" "$HOMEBREW_PREFIX/sbin"
+  _pathvar_prepend MANPATH "$HOMEBREW_PREFIX/share/man"
+  _pathvar_prepend INFOPATH "$HOMEBREW_PREFIX/share/info"
 fi
 
+# Go installed through Linuxbrew. Prefer the stable opt symlink to avoid a
+# `brew --prefix go` process during every startup.
+export GOPATH="$HOME/go"
+if [[ -d "${HOMEBREW_PREFIX:-}/opt/go/libexec" ]]; then
+  export GOROOT="$HOMEBREW_PREFIX/opt/go/libexec"
+elif [[ -d "/home/linuxbrew/.linuxbrew/opt/go/libexec" ]]; then
+  export GOROOT="/home/linuxbrew/.linuxbrew/opt/go/libexec"
+fi
+[[ -n "${GOROOT:-}" ]] && _path_append "$GOROOT/bin"
+_path_append "$GOPATH/bin"
+# export GO111MODULE=on
 
-# ## Starship prompt
-# if command -v starship &> /dev/null; then
-#     eval "$(starship init zsh)"
-# else
-#     echo "Starship is not installed or not in PATH. Please install it or add it to your PATH."
-# fi
-
-
-## Go 
-export GOPATH=$HOME/go
-export GOROOT="$(brew --prefix go)/libexec"
-export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-#export GO111MODULE=on
-
-## nix 
-if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
-  . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+# Nix daemon profile, when installed.
+if [[ -r /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 fi
 
-## nvm
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-
-## Add terminal_quran
-if [[ $- == *i* && "$RUN_QURAN_VERSE_ON_STARTUP" == "true" ]]; then
-~/cli/terminal_quran.sh
+# nvm is intentionally lazy-loaded. Sourcing nvm.sh is one of the slowest shell
+# startup steps, but these wrappers keep nvm/node/npm commands working.
+if [[ -z "${NVM_DIR-}" ]]; then
+  if [[ -n "${XDG_CONFIG_HOME-}" ]]; then
+    export NVM_DIR="$XDG_CONFIG_HOME/nvm"
+  else
+    export NVM_DIR="$HOME/.nvm"
+  fi
 fi
 
-## Install Ruby Gems to ~/gems
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  _load_nvm() {
+    unset -f nvm node npm npx corepack yarn pnpm 2>/dev/null
+    source "$NVM_DIR/nvm.sh"
+    [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+  }
+
+  nvm() { _load_nvm && nvm "$@"; }
+  node() { _load_nvm && command node "$@"; }
+  npm() { _load_nvm && command npm "$@"; }
+  npx() { _load_nvm && command npx "$@"; }
+  corepack() { _load_nvm && command corepack "$@"; }
+  yarn() { _load_nvm && command yarn "$@"; }
+  pnpm() { _load_nvm && command pnpm "$@"; }
+fi
+
+# Ruby gems installed under the home directory.
 export GEM_HOME="$HOME/gems"
-export PATH="$HOME/gems/bin:$PATH"
+_path_prepend "$GEM_HOME/bin"
 
+# Rust/Cargo, Atuin, Pixi.
+_path_prepend "$HOME/.cargo/bin" "$HOME/.atuin/bin" "$HOME/.pixi/bin"
 
-## Add Rust Cargo to PATH
-export PATH="$PATH:$HOME/.cargo/bin"
+# TeX Live 2026.
+_path_prepend "/usr/local/texlive/2026/bin/x86_64-linux"
+_pathvar_prepend MANPATH "/usr/local/texlive/2026/texmf-dist/doc/man"
+_pathvar_prepend INFOPATH "/usr/local/texlive/2026/texmf-dist/doc/info"
 
-## TeX Live 2026
-export PATH=/usr/local/texlive/2026/bin/x86_64-linux:$PATH
-export MANPATH=/usr/local/texlive/2026/texmf-dist/doc/man:$MANPATH
-export INFOPATH=/usr/local/texlive/2026/texmf-dist/doc/info:$INFOPATH
-
-# ## Atuin shell plugin
-# . "$HOME/.atuin/bin/env"
-# eval "$(atuin init zsh)"
+# Optional startup Quran message is run from .zshrc after config.zsh is loaded.
 
 ##### Physics Tools #####
 
@@ -83,4 +122,3 @@ export INFOPATH=/usr/local/texlive/2026/texmf-dist/doc/info:$INFOPATH
 # export PATH=$HOME/physics/fastjet/bin:$PATH:$PATH
 # export LD_LIBRARY_PATH=$HOME/physics/fastjet/lib:$LD_LIBRARY_PATH
 # export PKG_CONFIG_PATH=$HOME/physics/fastjet/lib/pkgconfig:$PKG_CONFIG_PATH
-
