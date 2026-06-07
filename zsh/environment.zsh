@@ -37,23 +37,33 @@ _pathvar_prepend() {
 # User-local command paths.
 _path_prepend "$HOME/.local/bin" "$HOME/bin"
 
-# Linuxbrew without running `brew shellenv` on every shell startup.
-if [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
-  export HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
-  export HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
-  export HOMEBREW_REPOSITORY="$HOMEBREW_PREFIX/Homebrew"
+# Homebrew/Linuxbrew, when installed. Prefer known prefixes and the existing
+# brew path over running `brew shellenv` on every startup.
+if [[ -z "${HOMEBREW_PREFIX-}" ]]; then
+  for _brew_prefix in /home/linuxbrew/.linuxbrew /opt/homebrew /usr/local; do
+    if [[ -x "$_brew_prefix/bin/brew" ]]; then
+      export HOMEBREW_PREFIX="$_brew_prefix"
+      break
+    fi
+  done
+fi
+
+if [[ -n "${HOMEBREW_PREFIX-}" && -d "$HOMEBREW_PREFIX" ]]; then
+  export HOMEBREW_CELLAR="${HOMEBREW_CELLAR:-$HOMEBREW_PREFIX/Cellar}"
+  export HOMEBREW_REPOSITORY="${HOMEBREW_REPOSITORY:-$HOMEBREW_PREFIX/Homebrew}"
   _path_prepend "$HOMEBREW_PREFIX/bin" "$HOMEBREW_PREFIX/sbin"
   _pathvar_prepend MANPATH "$HOMEBREW_PREFIX/share/man"
   _pathvar_prepend INFOPATH "$HOMEBREW_PREFIX/share/info"
 fi
+unset _brew_prefix
 
-# Go installed through Linuxbrew. Prefer the stable opt symlink to avoid a
-# `brew --prefix go` process during every startup.
+# Go. Set GOPATH everywhere, and set GOROOT only when this dotfile can detect a
+# manual or Homebrew Go installation.
 export GOPATH="$HOME/go"
 if [[ -d "${HOMEBREW_PREFIX:-}/opt/go/libexec" ]]; then
   export GOROOT="$HOMEBREW_PREFIX/opt/go/libexec"
-elif [[ -d "/home/linuxbrew/.linuxbrew/opt/go/libexec" ]]; then
-  export GOROOT="/home/linuxbrew/.linuxbrew/opt/go/libexec"
+elif [[ -d "/usr/local/go" ]]; then
+  export GOROOT="/usr/local/go"
 fi
 [[ -n "${GOROOT:-}" ]] && _path_append "$GOROOT/bin"
 _path_append "$GOPATH/bin"
@@ -97,12 +107,27 @@ _path_prepend "$GEM_HOME/bin"
 # Rust/Cargo, Atuin, Pixi.
 _path_prepend "$HOME/.cargo/bin" "$HOME/.atuin/bin" "$HOME/.pixi/bin"
 
-# TeX Live 2026.
-_path_prepend "/usr/local/texlive/2026/bin/x86_64-linux"
-_pathvar_prepend MANPATH "/usr/local/texlive/2026/texmf-dist/doc/man"
-_pathvar_prepend INFOPATH "/usr/local/texlive/2026/texmf-dist/doc/info"
+# TeX Live. Add every installed yearly tree, with the newest year winning
+# because PATH entries are prepended as the sorted glob advances.
+for _texlive_bin in /usr/local/texlive/*/bin/*(/N); do
+  _texlive_root="${_texlive_bin:h:h}"
+  _path_prepend "$_texlive_bin"
+  _pathvar_prepend MANPATH "$_texlive_root/texmf-dist/doc/man"
+  _pathvar_prepend INFOPATH "$_texlive_root/texmf-dist/doc/info"
+done
+unset _texlive_bin _texlive_root
 
 # Optional startup Quran message is run from .zshrc after config.zsh is loaded.
+
+# Machine-local environment. Keep host-specific paths and secrets out of the
+# shared repo.
+for _local_env_file in \
+  "$HOME/.config/dotfiles/environment.local.zsh" \
+  "$HOME/.environment.local.zsh"
+do
+  [[ -r "$_local_env_file" ]] && source "$_local_env_file"
+done
+unset _local_env_file
 
 ##### Physics Tools #####
 

@@ -96,6 +96,9 @@ perform_backup() {
         ["$HOME/.ssh/config"]="$backup_dir/ssh"  # Backup SSH config
         ["$HOME/.gitconfig"]="$backup_dir/git"  # Backup Git config
         ["$HOME/.stCommitMsg"]="$backup_dir/git"  # Backup Git commit message template
+        ["$HOME/.profile"]="$backup_dir/sh"  # Backup POSIX login shell profile
+        ["$HOME/.bashrc"]="$backup_dir/bash"  # Backup Bash configuration
+        ["$HOME/.zshenv"]="$backup_dir/zsh"  # Backup minimal Zsh environment
         ["$HOME/.zshrc"]="$backup_dir/zsh"  # Backup Zsh configuration
         ["$HOME"/*.zsh]="$backup_dir/zsh"  # Backup all .zsh files in the home directory
         ["$HOME/cli/*"]="$backup_dir/cli"  # Backup all files in the cli directory

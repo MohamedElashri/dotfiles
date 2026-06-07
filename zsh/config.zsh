@@ -4,4 +4,4 @@
 # fi
 
 ## Control Showing Quran verse on terminal startup
-export RUN_QURAN_VERSE_ON_STARTUP=true
+export RUN_QURAN_VERSE_ON_STARTUP="${RUN_QURAN_VERSE_ON_STARTUP:-true}"

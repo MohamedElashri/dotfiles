@@ -1,11 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# restore.sh - Restore dotfiles from this repository to $HOME
-# Place in root of your dotfiles repo
+# Restore dotfiles from this repository into $HOME.
+#
+# Defaults are conservative: copy files, prompt before replacing targets, and
+# move replaced targets into ~/.dotfiles-backup/<timestamp>/.
 
 set -euo pipefail
 
-# === Colors ===
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[0;32m"
 COLOR_YELLOW="\033[0;33m"
@@ -17,20 +18,171 @@ log_warn()    { echo -e "${COLOR_YELLOW}[WARN]${COLOR_RESET} $1"; }
 log_error()   { echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} $1"; }
 log_success() { echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $1"; }
 
+MODE="copy"
+ASSUME_YES=0
+DRY_RUN=0
+USE_BACKUP=1
+BACKUP_ROOT=""
+
+usage() {
+    cat <<'EOF'
+Usage: ./restore [OPTIONS]
+
+Options:
+  --copy            Copy files into place. This is the default.
+  --link            Symlink files/directories back to this repo.
+  -y, --yes         Do not prompt before replacing existing targets.
+  -n, --dry-run     Show what would happen without changing files.
+  --no-backup       Do not move existing targets to a backup first.
+  -h, --help        Show this help.
+
+Environment:
+  DOTFILES_BACKUP_DIR  Override the backup directory.
+EOF
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --copy)
+                MODE="copy"
+                ;;
+            --link)
+                MODE="link"
+                ;;
+            -y|--yes)
+                ASSUME_YES=1
+                ;;
+            -n|--dry-run)
+                DRY_RUN=1
+                ;;
+            --no-backup)
+                USE_BACKUP=0
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                usage
+                exit 2
+                ;;
+        esac
+        shift
+    done
+}
+
 confirm() {
-    read -rp "$(echo -e "${COLOR_YELLOW}[?]${COLOR_RESET} $1 (y/N): ")" reply
+    local message="$1"
+
+    if [[ "$ASSUME_YES" -eq 1 ]]; then
+        return 0
+    fi
+
+    if [[ ! -t 0 ]]; then
+        log_warn "No terminal available for prompt: $message"
+        return 1
+    fi
+
+    local reply
+    read -rp "$(echo -e "${COLOR_YELLOW}[?]${COLOR_RESET} $message (y/N): ")" reply
     [[ "$reply" =~ ^[Yy]$ ]]
 }
 
+run() {
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        printf 'DRY-RUN:'
+        printf ' %q' "$@"
+        printf '\n'
+    else
+        "$@"
+    fi
+}
+
 check_deps() {
-    local deps=(rsync cp mkdir)
+    local deps=(cp ln mkdir mv)
+
+    if [[ "$MODE" == "copy" ]]; then
+        deps+=(rsync)
+    fi
+
+    local dep
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
             log_error "Missing required command: $dep"
             exit 1
         fi
     done
-    log_success "Dependencies OK"
+}
+
+same_link() {
+    local src="$1"
+    local dest="$2"
+
+    [[ -L "$dest" ]] || return 1
+    [[ "$(readlink "$dest")" == "$src" ]]
+}
+
+same_file() {
+    local src="$1"
+    local dest="$2"
+
+    [[ -f "$src" && -f "$dest" ]] || return 1
+    cmp -s "$src" "$dest"
+}
+
+backup_existing() {
+    local dest="$1"
+    local rel backup_dest
+
+    if [[ "$dest" == "$HOME/"* ]]; then
+        rel="${dest#"$HOME"/}"
+    else
+        rel="${dest#/}"
+    fi
+
+    backup_dest="$BACKUP_ROOT/$rel"
+    run mkdir -p "$(dirname "$backup_dest")"
+    run mv "$dest" "$backup_dest"
+    log_info "Backed up existing target: $dest -> $backup_dest"
+}
+
+prepare_target() {
+    local src="$1"
+    local dest="$2"
+
+    if [[ "$MODE" == "link" ]] && same_link "$src" "$dest"; then
+        log_success "Already linked: $dest"
+        return 1
+    fi
+
+    if [[ "$MODE" == "copy" ]] && same_file "$src" "$dest"; then
+        log_success "Already current: $dest"
+        return 1
+    fi
+
+    if [[ -e "$dest" || -L "$dest" ]]; then
+        if [[ "$USE_BACKUP" -eq 1 ]]; then
+            confirm "Replace existing target with backup first: $dest" || {
+                log_info "Skipped: $dest"
+                return 1
+            }
+            backup_existing "$dest"
+        else
+            confirm "Replace existing target without backup: $dest" || {
+                log_info "Skipped: $dest"
+                return 1
+            }
+            if [[ "$MODE" == "link" ]]; then
+                log_error "--link with --no-backup cannot replace an existing target safely: $dest"
+                return 1
+            fi
+        fi
+    fi
+
+    run mkdir -p "$(dirname "$dest")"
+    return 0
 }
 
 restore_path() {
@@ -39,95 +191,78 @@ restore_path() {
 
     if [[ ! -e "$src" ]]; then
         log_warn "Source not found: $src"
-        return 1
+        return 0
     fi
 
-    local parent_dir
-    parent_dir="$(dirname "$dest")"
-    mkdir -p "$parent_dir"
+    prepare_target "$src" "$dest" || return 0
 
-    if [[ -e "$dest" ]]; then
-        if ! confirm "Target exists: $dest — overwrite?"; then
-            log_info "Skipped: $dest"
-            return 0
-        fi
-    fi
-
-    if [[ -d "$src" ]]; then
-        if rsync -a --delete "$src/" "$dest/"; then
-            log_success "Restored dir: $src → $dest"
-        else
-            log_error "Failed to restore dir: $src"
-        fi
+    if [[ "$MODE" == "link" ]]; then
+        run ln -s "$src" "$dest"
+        log_success "Linked: $dest -> $src"
+    elif [[ -d "$src" ]]; then
+        run mkdir -p "$dest"
+        run rsync -a "$src/" "$dest/"
+        log_success "Copied dir: $src -> $dest"
     else
-        if cp "$src" "$dest"; then
-            log_success "Restored file: $src → $dest"
-        else
-            log_error "Failed to restore file: $src"
-        fi
+        run cp "$src" "$dest"
+        log_success "Copied file: $src -> $dest"
     fi
 }
 
-main() {
-    local repo_root
-    repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+restore_all() {
+    local repo_root="$1"
+    local zsh_file filename
 
-    log_info "Repo root: $repo_root"
-    check_deps
+    # SSH
+    restore_path "$repo_root/ssh/config" "$HOME/.ssh/config"
 
-    if ! confirm "Restore dotfiles from this repo to your home directory?"; then
-        log_info "Aborted by user."
-        exit 0
-    fi
+    # Git
+    restore_path "$repo_root/git/.gitconfig" "$HOME/.gitconfig"
+    restore_path "$repo_root/git/.stCommitMsg" "$HOME/.stCommitMsg"
 
-    # --- SSH ---
-    if [[ -f "$repo_root/ssh/config" ]]; then
-        restore_path "$repo_root/ssh/config" "$HOME/.ssh/config"
-    fi
+    # POSIX shell and Bash
+    restore_path "$repo_root/sh/.profile" "$HOME/.profile"
+    restore_path "$repo_root/bash/.bashrc" "$HOME/.bashrc"
 
-    # --- Git ---
-    if [[ -f "$repo_root/git/.gitconfig" ]]; then
-        restore_path "$repo_root/git/.gitconfig" "$HOME/.gitconfig"
-    fi
-    if [[ -f "$repo_root/git/.stCommitMsg" ]]; then
-        restore_path "$repo_root/git/.stCommitMsg" "$HOME/.stCommitMsg"
-    fi
+    # Zsh explicit hidden files
+    restore_path "$repo_root/zsh/.zshenv" "$HOME/.zshenv"
+    restore_path "$repo_root/zsh/.zprofile" "$HOME/.zprofile"
+    restore_path "$repo_root/zsh/.zshrc" "$HOME/.zshrc"
 
-    # --- Zsh: explicit hidden config files ---
-    if [[ -f "$repo_root/zsh/.zshrc" ]]; then
-        restore_path "$repo_root/zsh/.zshrc" "$HOME/.zshrc"
-    fi
-    if [[ -f "$repo_root/zsh/.zprofile" ]]; then
-        restore_path "$repo_root/zsh/.zprofile" "$HOME/.zprofile"
-    fi
-
-    # --- Zsh: modular *.zsh files (non-hidden) → go to $HOME directly ---
-    # Enable globbing for existing files only
+    # Zsh modular files go directly under $HOME.
     shopt -s nullglob
     for zsh_file in "$repo_root"/zsh/*.zsh; do
-        if [[ -f "$zsh_file" ]]; then
-            filename=$(basename "$zsh_file")
-            restore_path "$zsh_file" "$HOME/$filename"
-        fi
+        filename="$(basename "$zsh_file")"
+        restore_path "$zsh_file" "$HOME/$filename"
     done
     shopt -u nullglob
 
-    # --- CLI scripts ---
-    if [[ -d "$repo_root/cli" ]] && [[ -n "$(ls -A "$repo_root/cli" 2>/dev/null)" ]]; then
-        restore_path "$repo_root/cli" "$HOME/cli"
-    fi
+    # CLI scripts
+    restore_path "$repo_root/cli" "$HOME/cli"
 
-    # --- Terminals ---
-    if [[ -d "$repo_root/terminals/ghostty" ]]; then
-        restore_path "$repo_root/terminals/ghostty" "$HOME/.config/ghostty"
-    fi
+    # Terminal configs
+    restore_path "$repo_root/terminals/ghostty" "$HOME/.config/ghostty"
+    restore_path "$repo_root/terminals/waveterm/config" "$HOME/.waveterm/config"
+}
 
-    if [[ -d "$repo_root/terminals/waveterm/config" ]]; then
-        restore_path "$repo_root/terminals/waveterm/config" "$HOME/.waveterm/config"
-    fi
+main() {
+    parse_args "$@"
 
-    log_success "Dotfile restoration complete!"
-    log_info "Run 'exec zsh' or restart your terminal to apply changes."
+    local repo_root timestamp
+    repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    BACKUP_ROOT="${DOTFILES_BACKUP_DIR:-$HOME/.dotfiles-backup/$timestamp}"
+
+    log_info "Repo root: $repo_root"
+    log_info "Mode: $MODE"
+    [[ "$USE_BACKUP" -eq 1 ]] && log_info "Backup root: $BACKUP_ROOT"
+    [[ "$DRY_RUN" -eq 1 ]] && log_warn "Dry run only; no files will be changed."
+
+    check_deps
+    restore_all "$repo_root"
+
+    log_success "Dotfile restoration complete."
+    log_info "Run 'exec zsh' or restart your terminal to apply shell changes."
 }
 
 main "$@"
