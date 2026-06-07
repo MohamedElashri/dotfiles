@@ -1,0 +1,16 @@
+# Machine-local environment template.
+#
+# This file is intentionally not installed by bootstrap.sh or restore.
+# To use it, copy it to:
+#   ~/.config/dotfiles/environment.local.zsh
+#
+# Keep host-specific paths, private exports, and machine-only tool settings here.
+
+# Example: add a host-local bin directory.
+# [[ -d "$HOME/.local/host-bin" ]] && path=("$HOME/.local/host-bin" "${path[@]}")
+
+# Example: select a local editor.
+# export EDITOR="nvim"
+
+# Example: private service configuration.
+# export EXAMPLE_API_ENDPOINT="https://example.invalid"

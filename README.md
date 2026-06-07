@@ -57,6 +57,9 @@ Examples of things that belong there:
 - private tokens or environment variables
 - host-specific SSH or cluster helpers
 
+Templates are provided in `templates/local/`. They are examples only and are
+not installed by `bootstrap.sh` or `restore`.
+
 ## Shell Layout
 
 - `zsh/.zshenv`: minimal zsh setup loaded by every zsh process

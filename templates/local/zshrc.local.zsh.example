@@ -1,0 +1,18 @@
+# Machine-local interactive zsh template.
+#
+# This file is intentionally not installed by bootstrap.sh or restore.
+# To use it, copy it to:
+#   ~/.config/dotfiles/zshrc.local.zsh
+#
+# Keep host-specific aliases, interactive helpers, and private shortcuts here.
+
+# Example: machine-specific alias.
+# alias worktree-status='git -C "$HOME/work" status'
+
+# Example: optional tool hook.
+# if command -v direnv >/dev/null 2>&1; then
+#   eval "$(direnv hook zsh)"
+# fi
+
+# Example: host-specific startup toggle.
+# export RUN_QURAN_VERSE_ON_STARTUP=false
