@@ -29,3 +29,5 @@ unset -f path_prepend 2>/dev/null || unset path_prepend
 if [ -n "$BASH_VERSION" ] && [ -f "$HOME/.bashrc" ]; then
     . "$HOME/.bashrc"
 fi
+
+

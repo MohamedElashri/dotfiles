@@ -21,3 +21,5 @@ unset -f _path_prepend _path_append _pathvar_prepend 2>/dev/null
 
 # # Added by `rbenv init` on Mon Jan 26 04:30:48 PM CET 2026
 # eval "$(rbenv init - --no-rehash zsh)"
+
+

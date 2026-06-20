@@ -65,7 +65,7 @@
 
 
 [core]
-    excludesfile = ~/.gitignore_global
+	excludesFile = /home/melashri/.config/git/ignore
     whitespace = space-before-tab, trailing-space, cr-at-eol
   pager = delta
 	editor = flatpak run re.sonny.Commit

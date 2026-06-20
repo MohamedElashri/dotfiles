@@ -46,3 +46,8 @@ done
 unset _dotfiles_local_file _dotfiles_zshrc_file
 unset -f _dotfiles_source_if_readable _dotfiles_source_dir
 unset -f _path_prepend _path_append _pathvar_prepend _omz_theme_exists _omz_add_plugin
+# sanad completion start
+fpath=("$HOME/.zsh/completions" $fpath)
+autoload -Uz compinit
+compinit
+# sanad completion end
