@@ -95,54 +95,6 @@ Replaced files are moved to `~/.dotfiles-backup/<timestamp>/` unless `--no-backu
 
 ---
 
-## Repository Layout
-
-```
-dotfiles/
-├── backup              # unified backup script (linux | hep | mac)
-├── restore             # unified restore script
-├── bootstrap.sh        # bootstrap: install deps then restore
-├── lib/
-│   └── platform.sh     # shared detect_platform() function
-│
-├── bash/               # Linux bash config
-│   └── .bashrc
-├── git/                # git config (all platforms)
-│   ├── .gitconfig
-│   └── .stCommitMsg
-├── sh/                 # POSIX login shell
-│   └── .profile
-├── ssh/                # SSH client config
-│   └── config
-├── zsh/                # Zsh config (Linux)
-│   ├── .zshenv
-│   ├── .zprofile
-│   ├── .zshrc
-│   ├── core/           # PATH, options, completion, Oh My Zsh
-│   ├── aliases/        # aliases grouped by domain
-│   ├── functions/      # shell functions grouped by domain
-│   └── integrations/   # optional tool hooks (conda, nvm, atuin, …)
-├── cli/                # user scripts (restored to ~/cli/)
-├── terminals/          # terminal emulator configs
-│   ├── ghostty/
-│   └── waveterm/
-├── templates/
-│   └── local/          # example local-override files (not installed)
-│
-├── hep/                # HEP cluster configs (see hep/README.md)
-│   ├── bash/           # bash-only setup for clusters
-│   ├── machine_aliases/# per-machine alias files
-│   └── scripts/        # helper scripts (Jupyter launcher, …)
-│
-└── mac/                # macOS configs (see mac/README.md)
-    ├── setup.sh
-    ├── backup
-    ├── lists/          # Homebrew package lists
-    └── configs/        # all macOS app/tool configs
-```
-
----
-
 ## Machine-Specific Overrides
 
 Do not fork the repo for host-specific paths or secrets. Put local-only files here instead:
