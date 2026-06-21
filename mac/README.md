@@ -51,52 +51,6 @@ back into `mac/configs/` and refreshes `mac/lists/brew.txt` and
 
 ---
 
-## Directory Layout
-
-```
-mac/
-├── setup.sh              # macOS restore script (run via ./restore --platform mac)
-├── backup                # macOS backup script (run via ./backup --platform mac)
-├── lists/
-│   ├── brew.txt          # Homebrew formulae (one per line, # comments ok)
-│   └── cask.txt          # Homebrew casks (one per line, # comments ok)
-└── configs/
-    ├── cli/
-    │   ├── atuin/        # atuin config
-    │   ├── bat/          # bat config
-    │   ├── gh/           # GitHub CLI config
-    │   ├── helix/        # Helix editor config
-    │   ├── hyper/        # Hyper terminal config
-    │   └── nano/         # nano config
-    ├── fonts/
-    │   ├── Fonts/        # font files
-    │   └── FontCollections/
-    ├── git/
-    │   ├── .gitconfig
-    │   └── .gitignore_global
-    ├── iterm2/           # iTerm2 preferences
-    ├── rio-terminal/     # Rio terminal config
-    ├── ssh/
-    │   └── config
-    ├── tmux/
-    │   └── .tmux.conf
-    ├── vscode/
-    │   └── settings.json
-    ├── waveterm/         # Wave terminal config
-    ├── zed/              # Zed editor config
-    └── zsh/
-        ├── .zshrc
-        ├── .zprofile
-        ├── aliases.zsh
-        ├── plugins.zsh
-        ├── environment.zsh
-        ├── config.zsh
-        ├── functions.zsh
-        └── shellhistory.zsh
-```
-
----
-
 ## Adding Packages
 
 Edit `lists/brew.txt` or `lists/cask.txt` directly. Blank lines and lines
