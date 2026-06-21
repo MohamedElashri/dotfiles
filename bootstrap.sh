@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
-# Bootstrap this dotfiles repo on a Linux machine.
+# Bootstrap this dotfiles repo on a new machine.
+# Supports Linux (local / devcontainer / VPS), macOS, and HEP clusters.
 #
 # Default behavior:
-#   - install base dependencies when a known package manager is available
+#   - auto-detect platform
+#   - install base dependencies when a known package manager is available (Linux only)
 #   - restore dotfiles as symlinks into $HOME
 #   - skip optional tools unless --optional-tools is passed
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
 
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[0;32m"
@@ -26,6 +32,8 @@ RUN_RESTORE=1
 RESTORE_MODE="link"
 ASSUME_YES=0
 DRY_RUN=0
+PLATFORM=""
+MACHINE=""
 
 BASE_PACKAGES=(curl git rsync zsh)
 
@@ -34,14 +42,22 @@ usage() {
 Usage: ./bootstrap.sh [OPTIONS]
 
 Options:
-  --optional-tools  Install Oh My Zsh, Starship, Atuin, and Rust when missing.
-  --no-packages     Do not install package-manager dependencies.
-  --no-restore      Do not run ./restore.
-  --link            Restore dotfiles as symlinks. This is the default.
-  --copy            Restore dotfiles as copies instead of symlinks.
-  -y, --yes         Do not prompt.
-  -n, --dry-run     Show what would run without changing files.
-  -h, --help        Show this help.
+  --optional-tools          Install Oh My Zsh, Starship, Atuin, and Rust when missing.
+  --no-packages             Do not install package-manager dependencies.
+  --no-restore              Do not run ./restore.
+  --link                    Restore dotfiles as symlinks. This is the default.
+  --copy                    Restore dotfiles as copies instead of symlinks.
+  --platform linux|mac|hep  Override auto-detected platform.
+  --machine NAME            HEP machine name passed through to restore.
+  -y, --yes                 Do not prompt.
+  -n, --dry-run             Show what would run without changing files.
+  -h, --help                Show this help.
+
+Platforms:
+  linux  Local Linux machine / devcontainer / VPS (default on Linux).
+  mac    macOS – dispatches to mac/setup.sh; package install uses brew.
+  hep    HEP cluster (lxplus, sneezy, sleepy, gpu_farm) – skips package
+         install (no root), runs restore --platform hep.
 EOF
 }
 
@@ -62,6 +78,16 @@ parse_args() {
                 ;;
             --copy)
                 RESTORE_MODE="copy"
+                ;;
+            --platform)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--platform requires a value (linux|mac|hep)"; exit 2; }
+                PLATFORM="$1"
+                ;;
+            --machine)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--machine requires a value (e.g. lxplus, sneezy)"; exit 2; }
+                MACHINE="$1"
                 ;;
             -y|--yes)
                 ASSUME_YES=1
@@ -274,8 +300,9 @@ install_optional_tools() {
 
 run_restore() {
     local repo_root="$1"
-    local restore_args=("--$RESTORE_MODE")
+    local restore_args=("--$RESTORE_MODE" "--platform" "$PLATFORM")
 
+    [[ -n "$MACHINE" ]] && restore_args+=(--machine "$MACHINE")
     [[ "$ASSUME_YES" -eq 1 ]] && restore_args+=(--yes)
     [[ "$DRY_RUN" -eq 1 ]] && restore_args+=(--dry-run)
 
@@ -292,22 +319,47 @@ main() {
     local repo_root
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+    if [[ -z "$PLATFORM" ]]; then
+        PLATFORM="$(detect_platform)"
+    fi
+
     log_info "Repo root: $repo_root"
+    log_info "Platform:  $PLATFORM"
     [[ "$DRY_RUN" -eq 1 ]] && log_warn "Dry run only; no files will be changed."
 
-    if [[ "$INSTALL_PACKAGES" -eq 1 ]]; then
-        install_base_packages
-    fi
+    case "$PLATFORM" in
+        mac)
+            log_info "macOS bootstrap: dispatching to mac/setup.sh"
+            if [[ "$RUN_RESTORE" -eq 1 ]]; then
+                run_restore "$repo_root"
+            fi
+            ;;
+        hep)
+            log_info "HEP bootstrap: skipping package install (no root on cluster)"
+            if [[ "$RUN_RESTORE" -eq 1 ]]; then
+                run_restore "$repo_root"
+            fi
+            ;;
+        linux)
+            if [[ "$INSTALL_PACKAGES" -eq 1 ]]; then
+                install_base_packages
+            fi
 
-    if [[ "$INSTALL_OPTIONAL_TOOLS" -eq 1 ]]; then
-        install_optional_tools
-    else
-        log_info "Skipping optional tool installers. Use --optional-tools to enable them."
-    fi
+            if [[ "$INSTALL_OPTIONAL_TOOLS" -eq 1 ]]; then
+                install_optional_tools
+            else
+                log_info "Skipping optional tool installers. Use --optional-tools to enable them."
+            fi
 
-    if [[ "$RUN_RESTORE" -eq 1 ]]; then
-        run_restore "$repo_root"
-    fi
+            if [[ "$RUN_RESTORE" -eq 1 ]]; then
+                run_restore "$repo_root"
+            fi
+            ;;
+        *)
+            log_error "Unknown platform: $PLATFORM"
+            exit 1
+            ;;
+    esac
 
     log_success "Bootstrap complete."
 }

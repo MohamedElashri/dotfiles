@@ -1,0 +1,41 @@
+#!/bin/bash
+
+################################## ME HEP dotfiles ##################################
+
+
+## LHCb
+alias lxplus='source /cvmfs/lhcb.cern.ch/group_login.sh'
+alias kinit='kinit melashri@CERN.CH'
+
+## Allen Aliases
+
+# Check if the directory exists, then run pvfinder for GPU
+alias run_pvfinder_gpu='[ -d ~/inference-engine/buildgpu ] && pushd ~/inference-engine/buildgpu > /dev/null && ./toolchain/wrapper ./Allen --sequence pvfinder && popd > /dev/null || echo "Directory ~/inference-engine/buildgpu does not exist"'
+
+# Check if the directory exists, then run pvfinder for CPU
+alias run_pvfinder_cpu='[ -d ~/inference-engine/buildcpu ] && pushd ~/inference-engine/buildcpu > /dev/null && ./toolchain/wrapper ./Allen --sequence pvfinder && popd > /dev/null || echo "Directory ~/inference-engine/buildcpu does not exist"'
+
+# Check if the directory exists, then build inference for GPU with error handling
+alias build_inference='[ -d ~/inference-engine/buildgpu ] && pushd ~/inference-engine/buildgpu > /dev/null && make -j32 && popd > /dev/null || echo "Build failed or directory ~/inference-engine/buildgpu does not exist"'
+
+# Check if the directory exists, then build inference for CPU with error handling
+alias build_inference_cpu='[ -d ~/inference-engine/buildcpu ] && pushd ~/inference-engine/buildcpu > /dev/null && make -j32 && popd > /dev/null || echo "Build failed or directory ~/inference-engine/buildcpu does not exist"'
+
+# Check if the directory exists, then run HLT1 for GPU
+alias run_hlt1='[ -d ~/inference-engine/buildgpu ] && pushd ~/inference-engine/buildgpu > /dev/null && ./toolchain/wrapper ./Allen --sequence hlt1_pp_forward_then_matching --mdf /scratch/allen_data/mdf_input/upgrade_mc_minbias_scifi_v5_retinacluster_000_v1.mdf -n 500 -m 500 -r 1000 -t 16 && popd > /dev/null || echo "Directory ~/inference-engine/buildgpu does not exist"'
+
+# Check if the directory exists, then run HLT1 with pvfinder for GPU
+alias run_hlt1_pvfinder='[ -d ~/inference-engine/buildgpu ] && pushd ~/inference-engine/buildgpu > /dev/null && ./toolchain/wrapper ./Allen --sequence hlt1_pp_forward_then_matching_with_pvfinder --mdf /scratch/allen_data/mdf_input/upgrade_mc_minbias_scifi_v5_retinacluster_000_v1.mdf -n 500 -m 500 -r 1000 -t 16 && popd > /dev/null || echo "Directory ~/inference-engine/buildgpu does not exist"'
+
+## export specific tools
+export PATH=$PATH:/usr/local/cuda/bin
+
+
+## ONNX runtime / TensorRT
+export CUDA_HOME=/usr/local/cuda  # Assuming CUDA is still in the system path at /usr/local/cuda
+export CUDNN_HOME=$HOME/local/cuda
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDNN_HOME/lib:$LD_LIBRARY_PATH
+
+
+################################## ME HEP dotfiles ##################################

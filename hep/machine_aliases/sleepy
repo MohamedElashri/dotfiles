@@ -1,0 +1,50 @@
+#### Machine Specific Aliases ####
+
+
+# Environment Setup
+export VIMRUNTIME="$HOME/myvim/vim90/runtime"
+export PATH=/usr/local/cuda-12.6/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH
+
+
+# Conda initialization
+# >>> conda initialize >>>
+__conda_setup="$('/apps/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/apps/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/apps/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/apps/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <
+
+
+## LHCb
+alias source_lhcb='source /cvmfs/lhcb.cern.ch/lib/var/lib/LbEnv/stable/linux-64/bin/activate'
+
+## Data Access
+alias lazy='cd /share/lazy/'
+alias mydata='cd /share/lazy/Mohamed/'
+
+## LHCb Common
+alias lxplus='source /cvmfs/lhcb.cern.ch/group_login.sh'
+alias kinit='kinit melashri@CERN.CH'
+
+## B Analysis
+alias b='cd /data/home/melashri/analyses'
+alias b_conda='conda activate bphysics'
+alias b_data='cd /share/lazy/Mohamed/'
+
+# cuDNN Configuration
+export CUDNN_HOME=/data/home/melashri/local/cuda
+export LD_LIBRARY_PATH=$CUDNN_HOME/lib64:$LD_LIBRARY_PATH
+export CPATH=$CUDNN_HOME/include:$CPATH
+export LIBRARY_PATH=$CUDNN_HOME/lib64:$LIBRARY_PATH
+
+
+#### Machine Specific Aliases ####
+

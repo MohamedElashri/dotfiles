@@ -1,0 +1,11 @@
+{
+  "ai@ollama-llama": {
+    "display:name": "Ollama - Llama2",
+    "display:order": 2,
+    "ai:*": true,
+    "ai:baseurl": "http://localhost:11434/v1",
+    "ai:name": "llama2",
+    "ai:model": "llama2",
+    "ai:apitoken": "ollama"
+  }
+}

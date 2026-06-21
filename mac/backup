@@ -1,0 +1,143 @@
+#!/bin/bash
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Function to check if a file exists and copy it
+copy_file() {
+  if [ -f "$1" ]; then
+    cp -f "$1" "$2"
+    echo -e "${GREEN}Copied $1 to $2${NC}"
+  else
+    echo -e "${YELLOW}File $1 does not exist. Skipping.${NC}"
+  fi
+}
+
+# Function to check if a directory exists and create it if necessary
+ensure_directory() {
+  if [ ! -d "$1" ]; then
+    mkdir -p "$1"
+    echo -e "${BLUE}Created directory $1${NC}"
+  fi
+}
+
+# Function to copy an entire directory recursively
+copy_dir() {
+  local src="$1"
+  local dest="$2"
+
+  if [ -d "$src" ]; then
+    # Ensure destination parent directory exists
+    mkdir -p "$dest"
+    # Copy contents of src into dest (preserving structure)
+    cp -r "$src"/* "$dest/" 2>/dev/null
+    echo -e "${GREEN}Copied directory $src to $dest${NC}"
+  else
+    echo -e "${YELLOW}Directory $src does not exist. Skipping.${NC}"
+  fi
+}
+
+
+# Backup brew packages
+ensure_directory "lists"
+brew list > "lists/brew.txt"
+echo -e "${CYAN}Backed up brew packages to lists/brew.txt${NC}"
+
+# Backup cask packages
+brew list --cask > "lists/cask.txt"
+echo -e "${CYAN}Backed up cask packages to lists/cask.txt${NC}"
+
+# Backup config files
+ensure_directory "configs/zsh"
+copy_file ~/.zshrc configs/zsh/.zshrc
+copy_file ~/.zprofile configs/zsh/.zprofile
+copy_file ~/aliases.zsh configs/zsh/aliases.zsh
+copy_file ~/plugins.zsh configs/zsh/plugins.zsh
+copy_file ~/environment.zsh configs/zsh/environment.zsh
+copy_file ~/config.zsh configs/zsh/config.zsh
+copy_file ~/functions.zsh configs/zsh/functions.zsh
+copy_file ~/shellhistory.zsh configs/zsh/shellhistory.zsh
+copy_file ~/.p10k.zsh configs/zsh/.p10k.zsh
+
+
+# Backup bat config
+ensure_directory "configs/cli/bat"
+copy_file ~/.config/bat/config configs/cli/bat/config
+
+# Backup zed config
+ensure_directory "configs/zed"
+copy_file ~/.config/zed/settings.json configs/zed/settings.json
+
+# Backup ssh config
+ensure_directory "configs/ssh"
+copy_file ~/.ssh/config configs/ssh/config
+
+# Backup helix config
+ensure_directory "configs/cli/helix"
+copy_file ~/.config/helix/config.toml configs/cli/helix/config.toml
+
+# Backup nano config
+ensure_directory "configs/cli/nano"
+copy_file ~/.nanorc configs/cli/nano/nanorc
+
+# Backup gh config
+ensure_directory "configs/cli/gh"
+copy_file ~/.config/gh/config.yml configs/cli/gh/config.yml
+
+# Backup hyper terminal config
+ensure_directory "configs/cli/hyper"
+copy_file ~/.hyper.js configs/cli/hyper/hyper.js
+
+# Backup terminal quarn script and nvim manager
+ensure_directory "configs/cli/"
+copy_file ~/cli/terminal_quran.sh configs/cli/terminal_quran.sh
+copy_file ~/cli/m_nvim.zsh configs/cli/m_nvim.zsh
+
+# Backup tmux.conf
+ensure_directory "configs/tmux"
+copy_file ~/.tmux.conf configs/tmux/.tmux.conf
+
+# Backup git
+ensure_directory "configs/git"
+copy_file ~/.gitconfig configs/git/.gitconfig
+copy_file ~/.gitignore_global configs/git/.gitignore_global
+copy_file ~/.stCommitMsg configs/git/.stCommitMsg
+
+# Backup vscode settings file
+ensure_directory "configs/vscode"
+copy_file "$HOME/Library/Application Support/Code/User/settings.json" "configs/vscode/settings.json"
+
+# Backup iTerm2 config
+ensure_directory "configs/iterm2"
+copy_file "$HOME/Library/Preferences/com.googlecode.iterm2.plist" "configs/iterm2/com.googlecode.iterm2.plist"
+
+# Backup waveterm config folder at ~/.waveterm/config folder
+ensure_directory "configs/waveterm"
+copy_dir "$HOME/.waveterm/config" "configs/waveterm"
+
+# Backup atuin config
+ensure_directory "configs/cli/atuin"
+copy_file ~/.config/atuin/config.toml configs/cli/atuin/config.toml
+
+
+#Backup rio-terminal
+ensure_directory "configs/rio-terminal"
+copy_file ~/.config/rio/config.toml configs/rio-terminal/config.toml
+ensure_directory "configs/rio-terminal/themes"
+copy_file ~/.config/rio/themes/dracula.toml configs/rio-terminal/themes/dracula.toml
+copy_file ~/.config/rio/themes/catppuccin-macchiato.toml configs/rio-terminal/themes/catppuccin-macchiato.toml
+
+# Backup Fonts Collections
+ensure_directory "configs/fonts/FontCollections"
+cp -f ~/Library/FontCollections/* "configs/fonts/FontCollections" 2>/dev/null
+if [ $? -eq 0 ]; then
+  echo -e "${MAGENTA}Backed up Font Collections${NC}"
+else
+  echo -e "${YELLOW}No Font Collections found or unable to copy.${NC}"
+fi

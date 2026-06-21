@@ -1,0 +1,26 @@
+#!/bin/bash
+
+################################## ME HEP dotfiles ##################################
+
+
+
+HISTCONTROL=ignoreboth:erasedups # ignore duplicate lines or lines starting with space in the history.
+shopt -s histappend # append to the history file, don't overwrite it
+PROMPT_COMMAND='history -a'
+# Increase the history size limit
+HISTSIZE=100000
+HISTFILESIZE=200000
+
+# Dircolors setup
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+fi
+
+
+# Include Path
+export PATH="$HOME/.local/bin:$PATH"
+
+
+
+
+################################## ME HEP dotfiles ##################################

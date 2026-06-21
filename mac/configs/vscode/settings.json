@@ -1,0 +1,83 @@
+{
+  "application.shellEnvironmentResolutionTimeout": 20,
+  "editor.accessibilitySupport": "off",
+  "editor.fontFamily": "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Hack', 'Iosevka', 'Monaspace Argon', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 16,
+  "editor.fontWeight": "normal",
+  "editor.formatOnPaste": true,
+  "editor.inlineSuggest.enabled": true,
+  "editor.inlineSuggest.showToolbar": "always",
+  "editor.minimap.autohide": "mouseover",
+  "editor.minimap.enabled": false,
+  "extensions.autoCheckUpdates": true,
+  "extensions.autoUpdate": false,
+  "git.autofetch": true,
+  "git.ignoreLegacyWarning": true,
+  "git.addAICoAuthor": "off",
+  "github.copilot.enable": {
+    "*": true,
+    "markdown": true,
+    "plaintext": false,
+    "python": true,
+    "quarto": false,
+    "scminput": false
+  },
+  "security.workspace.trust.untrustedFiles": "open",
+  "terminal.external.osxExec": "iTerm.app",
+  "terminal.integrated.automationProfile.linux": null,
+  "terminal.integrated.env.osx": {
+    "CW_NEW_SESSION": "1",
+    "FIG_NEW_SESSION": "1",
+    "Q_NEW_SESSION": "1"
+  },
+  "terminal.integrated.fontFamily": "monospace",
+  "terminal.integrated.persistentSessionScrollback": 1000,
+  "terminal.integrated.scrollback": 10000,
+  "workbench.colorCustomizations": {
+  "terminal.background":"#FFFFFF",
+  "terminal.foreground":"#101010",
+  "terminalCursor.background":"#101010",
+  "terminalCursor.foreground":"#101010",
+  "terminal.ansiBlack":"#FFFFFF",
+  "terminal.ansiBlue":"#3777E6",
+  "terminal.ansiBrightBlack":"#B0B0B0",
+  "terminal.ansiBrightBlue":"#3777E6",
+  "terminal.ansiBrightCyan":"#1FAAAA",
+  "terminal.ansiBrightGreen":"#00C918",
+  "terminal.ansiBrightMagenta":"#AD00A1",
+  "terminal.ansiBrightRed":"#FF0086",
+  "terminal.ansiBrightWhite":"#202020",
+  "terminal.ansiBrightYellow":"#ABA800",
+  "terminal.ansiCyan":"#1FAAAA",
+  "terminal.ansiGreen":"#00C918",
+  "terminal.ansiMagenta":"#AD00A1",
+  "terminal.ansiRed":"#FF0086",
+  "terminal.ansiWhite":"#101010",
+  "terminal.ansiYellow":"#ABA800"  },
+  "workbench.editorAssociations": {
+    "*.copilotmd": "vscode.markdown.preview.editor",
+    "*.ipynb": "default",
+    "*.xls": "default",
+    "*.pdf": "latex-workshop-pdf-hook"
+  },
+  "workbench.editorLargeFileConfirmation": 50,
+  "git.openRepositoryInParentFolders": "never",
+  "settingsSync.ignoredExtensions": [
+    "ms-vscode.js-debug-companion"
+  ],
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "chat.mcp.gallery.enabled": true,
+  "workbench.colorTheme": "Quiet Light",
+  "python.analysis.typeCheckingMode": "standard",
+  "vsicons.dontShowNewVersionMessage": true,
+  "chat.tools.terminal.autoApprove": {
+    "go": true
+  },
+  "redhat.telemetry.enabled": false,
+  "remoteHub.commitDirectlyWarning": "off",
+  "chat.viewSessions.orientation": "stacked",
+  "go.toolsManagement.autoUpdate": true,
+  
+
+}

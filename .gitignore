@@ -1,0 +1,13 @@
+# Old nested repos (now consolidated into hep/ and mac/)
+dotfiles-hep/
+dotfiles-mac/
+
+# macOS
+.DS_Store
+
+# Secrets
+.env
+
+# Editor
+.vscode/
+*.swp

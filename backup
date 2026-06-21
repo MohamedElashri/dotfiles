@@ -1,136 +1,185 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Unified dotfiles backup.
+# Auto-detects platform (linux | hep | mac); override with --platform.
 
-# Backup script for dotfiles
+set -euo pipefail
 
-# Define colors for log messages
-COLOR_RED="\033[0;31m"  # Red color for error messages
-COLOR_GREEN="\033[0;32m"  # Green color for success messages
-COLOR_YELLOW="\033[0;33m"  # Yellow color for warning messages
-COLOR_BLUE="\033[0;34m"  # Blue color for informational messages
-COLOR_RESET="\033[0m"  # Reset color to default
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
 
-# Logging functions to provide colored log messages for different types of events
-log_info() {
-    echo -e "${COLOR_BLUE}[INFO]${COLOR_RESET} $1"
+COLOR_RED="\033[0;31m"
+COLOR_GREEN="\033[0;32m"
+COLOR_YELLOW="\033[0;33m"
+COLOR_BLUE="\033[0;34m"
+COLOR_RESET="\033[0m"
+
+log_info()    { echo -e "${COLOR_BLUE}[INFO]${COLOR_RESET} $1"; }
+log_warn()    { echo -e "${COLOR_YELLOW}[WARN]${COLOR_RESET} $1"; }
+log_error()   { echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} $1"; }
+log_success() { echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $1"; }
+
+PLATFORM=""
+MACHINE=""
+
+usage() {
+    cat <<'EOF'
+Usage: ./backup [OPTIONS]
+
+Options:
+  --platform linux|mac|hep  Override auto-detected platform.
+  --machine NAME            HEP machine name used to key the machine_aliases
+                            file (default: hostname -s).  Use this on lxplus
+                            nodes whose hostnames rotate (e.g. lxplus901 →
+                            specify --machine lxplus).
+  -h, --help                Show this help.
+
+Platform detection (automatic):
+  mac    uname == Darwin
+  hep    /afs/cern.ch or /cvmfs/lhcb.cern.ch present, or hostname matches
+         known HEP cluster patterns (lxplus, sneezy, sleepy, goofy, *.cern.ch)
+  linux  everything else (local Linux machine, devcontainer, VPS)
+EOF
 }
 
-log_warning() {
-    echo -e "${COLOR_YELLOW}[WARNING]${COLOR_RESET} $1"
-}
-
-log_error() {
-    echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} $1"
-}
-
-log_success() {
-    echo -e "${COLOR_GREEN}[SUCCESS]${COLOR_RESET} $1"
-}
-
-# Function to check if a file exists
-# Takes a file path as an argument and logs the result
-check_file_exists() {
-    local file_path="$1"
-    log_info "Checking if file '$file_path' exists."
-    if [ -f "$file_path" ]; then
-        return 0  # File exists
-    else
-        return 1  # File does not exist
-    fi
-}
-
-# Function to copy file to backup location
-backup_file() {
-    local file_path="$1"
-    local backup_dir="$2"
-
-    log_info "Attempting to back up '$file_path' to '$backup_dir'."
-
-    # Check if it's a directory
-    if [ -d "$file_path" ]; then
-        # Create the backup directory if it doesn't exist
-        mkdir -p "$backup_dir" || {
-            log_error "Failed to create backup directory '$backup_dir'."
-            return 1
-        }
-        
-        # Recursively copy directory contents. -L dereferences symlinks so a
-        # snapshot made after `restore --link` still contains real files.
-        if rsync -aL "$file_path/" "$backup_dir"; then
-            log_success "Successfully backed up directory '$file_path' to '$backup_dir'."
-            return 0
-        else
-            log_error "Failed to back up directory '$file_path' to '$backup_dir'."
-            return 1
-        fi
-    elif [ -f "$file_path" ]; then
-        # If it's a file, copy it
-        mkdir -p "$backup_dir" || {
-            log_error "Failed to create backup directory '$backup_dir'."
-            return 1
-        }
-        if cp -L "$file_path" "$backup_dir"; then
-            log_success "Successfully backed up file '$file_path' to '$backup_dir'."
-            return 0
-        else
-            log_error "Failed to back up file '$file_path' to '$backup_dir'."
-            return 1
-        fi
-    else
-        log_warning "'$file_path' is neither a file nor a directory. Skipping."
-        return 1
-    fi
-}
-
-
-
-# Main backup function
-# Takes the backup directory as an argument and performs the backup process
-perform_backup() {
-    local backup_dir="$1"
-    
-    log_info "Starting backup to directory '$backup_dir'."
-    # Create backup directory if it does not exist
-    mkdir -p "$backup_dir" || { log_error "Failed to create backup directory '$backup_dir'"; exit 1; }
-
-    # List of directories and files to backup with target directories
-    declare -A backup_items=(
-        ["$HOME/.ssh/config"]="$backup_dir/ssh"  # Backup SSH config
-        ["$HOME/.gitconfig"]="$backup_dir/git"  # Backup Git config
-        ["$HOME/.stCommitMsg"]="$backup_dir/git"  # Backup Git commit message template
-        ["$HOME/.profile"]="$backup_dir/sh"  # Backup POSIX login shell profile
-        ["$HOME/.bashrc"]="$backup_dir/bash"  # Backup Bash configuration
-        ["$HOME/.zshenv"]="$backup_dir/zsh"  # Backup minimal Zsh environment
-        ["$HOME/.zshrc"]="$backup_dir/zsh"  # Backup Zsh configuration
-        ["$HOME"/*.zsh]="$backup_dir/zsh"  # Backup all .zsh files in the home directory
-        ["$HOME/.config/dotfiles/zsh"]="$backup_dir/dotfiles/zsh"  # Backup installed Zsh modules
-        ["$HOME/cli/*"]="$backup_dir/cli"  # Backup all files in the cli directory
-        ["$HOME/.zprofile"]="$backup_dir/zsh" # Backup .zprofile
-        ["$HOME/.waveterm/config"]="$backup_dir/terminals/waveterm/config" # Backup Waveterm directory
-        ["$HOME/.config/ghostty"]="$backup_dir/terminals/ghostty" # Backup Ghostty directory
-    )
-
-    # Loop through each file or directory and perform the backup
-    for item in "${!backup_items[@]}"; do
-        local target_dir="${backup_items[$item]}"
-        log_info "Processing item '$item' with target directory '$target_dir'."
-        
-        # Use globbing to handle wildcards
-        for file in $item; do
-            if [ -e "$file" ]; then
-                backup_file "$file" "$target_dir"
-            else
-                log_warning "Item '$file' not found. Skipping."
-            fi
-        done
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --platform)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--platform requires a value (linux|mac|hep)"; exit 2; }
+                PLATFORM="$1"
+                ;;
+            --machine)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--machine requires a value (e.g. lxplus, sneezy)"; exit 2; }
+                MACHINE="$1"
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                usage
+                exit 2
+                ;;
+        esac
+        shift
     done
 }
 
-# Entry point of the script
-main() {
-    local backup_dir="."  # Define the default backup directory
-    log_info "Starting main backup process."
-    perform_backup "$backup_dir"  # Call the main backup function
-    log_info "Backup process completed. Please review any warnings."  # Log the completion of the process
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+backup_item() {
+    local src="$1"
+    local dest_dir="$2"
+
+    if [[ -d "$src" ]]; then
+        # If src resolves to the same path as dest_dir, it's already in the repo
+        # (happens after restore --link on directories).
+        local real_src; real_src="$(realpath "$src" 2>/dev/null || readlink -f "$src")"
+        local real_dest; real_dest="$(realpath "$dest_dir" 2>/dev/null || readlink -f "$dest_dir" 2>/dev/null || true)"
+        if [[ -n "$real_dest" && "$real_src" == "$real_dest" ]]; then
+            log_info "Already in repo (skipping): $src"
+            return 0
+        fi
+        mkdir -p "$dest_dir"
+        if rsync -aL "$src/" "$dest_dir/"; then
+            log_success "Backed up dir  $src → $dest_dir"
+        else
+            log_error "Failed to back up dir: $src"
+        fi
+    elif [[ -f "$src" ]]; then
+        local dest_file="$dest_dir/$(basename "$src")"
+        # Skip if src and dest resolve to the same inode (symlink into repo).
+        if [[ -e "$dest_file" ]]; then
+            local real_src; real_src="$(realpath "$src" 2>/dev/null || readlink -f "$src")"
+            local real_dest; real_dest="$(realpath "$dest_file" 2>/dev/null || readlink -f "$dest_file" 2>/dev/null || true)"
+            if [[ -n "$real_dest" && "$real_src" == "$real_dest" ]]; then
+                log_info "Already in repo (skipping): $src"
+                return 0
+            fi
+        fi
+        mkdir -p "$dest_dir"
+        if cp -L "$src" "$dest_dir/"; then
+            log_success "Backed up file $src → $dest_dir"
+        else
+            log_error "Failed to back up file: $src"
+        fi
+    else
+        log_warn "Not found (skipping): $src"
+    fi
 }
 
-main "$@"  # Call the main function with all command-line arguments
+# ── platform: linux ──────────────────────────────────────────────────────────
+
+backup_linux() {
+    local repo_root="$1"
+    log_info "Linux backup → $repo_root"
+
+    backup_item "$HOME/.ssh/config"           "$repo_root/ssh"
+    backup_item "$HOME/.gitconfig"            "$repo_root/git"
+    backup_item "$HOME/.stCommitMsg"          "$repo_root/git"
+    backup_item "$HOME/.profile"              "$repo_root/sh"
+    backup_item "$HOME/.bashrc"               "$repo_root/bash"
+    backup_item "$HOME/.zshenv"               "$repo_root/zsh"
+    backup_item "$HOME/.zprofile"             "$repo_root/zsh"
+    backup_item "$HOME/.zshrc"                "$repo_root/zsh"
+    backup_item "$HOME/cli"                   "$repo_root/cli"
+    backup_item "$HOME/.config/ghostty"       "$repo_root/terminals/ghostty"
+    backup_item "$HOME/.waveterm/config"      "$repo_root/terminals/waveterm/config"
+}
+
+# ── platform: hep ────────────────────────────────────────────────────────────
+
+backup_hep() {
+    local repo_root="$1"
+    local machine="${MACHINE:-$(hostname -s 2>/dev/null || hostname)}"
+    log_info "HEP backup from $machine → $repo_root/hep"
+
+    backup_item "$HOME/.bashrc"         "$repo_root/hep/bash"
+    backup_item "$HOME/.bash_aliases"   "$repo_root/hep/bash"
+    backup_item "$HOME/.bash_config"    "$repo_root/hep/bash"
+    backup_item "$HOME/.bash_functions" "$repo_root/hep/bash"
+
+    if [[ -f "$HOME/.machine_aliases" ]]; then
+        mkdir -p "$repo_root/hep/machine_aliases"
+        cp "$HOME/.machine_aliases" "$repo_root/hep/machine_aliases/$machine"
+        log_success "Backed up .machine_aliases → hep/machine_aliases/$machine"
+    fi
+}
+
+# ── platform: mac ────────────────────────────────────────────────────────────
+
+backup_mac() {
+    local repo_root="$1"
+    log_info "Mac backup via mac/backup"
+    # Run in a subshell so the working-directory change is isolated and main()
+    # can still print the completion message afterwards.
+    (cd "$repo_root/mac" && bash backup)
+}
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+main() {
+    parse_args "$@"
+
+    local repo_root="$SCRIPT_DIR"
+
+    if [[ -z "$PLATFORM" ]]; then
+        PLATFORM="$(detect_platform)"
+    fi
+    log_info "Platform: $PLATFORM"
+
+    case "$PLATFORM" in
+        linux) backup_linux "$repo_root" ;;
+        hep)   backup_hep   "$repo_root" ;;
+        mac)   backup_mac   "$repo_root" ;;
+        *)     log_error "Unknown platform: $PLATFORM"; exit 1 ;;
+    esac
+
+    log_success "Backup complete. Review with: git diff --stat"
+}
+
+main "$@"

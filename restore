@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/platform.sh
+source "$SCRIPT_DIR/lib/platform.sh"
+
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[0;32m"
 COLOR_YELLOW="\033[0;33m"
@@ -23,18 +27,24 @@ ASSUME_YES=0
 DRY_RUN=0
 USE_BACKUP=1
 BACKUP_ROOT=""
+PLATFORM=""
+MACHINE=""
 
 usage() {
     cat <<'EOF'
 Usage: ./restore [OPTIONS]
 
 Options:
-  --copy            Copy files into place. This is the default.
-  --link            Symlink files/directories back to this repo.
-  -y, --yes         Do not prompt before replacing existing targets.
-  -n, --dry-run     Show what would happen without changing files.
-  --no-backup       Do not move existing targets to a backup first.
-  -h, --help        Show this help.
+  --copy                    Copy files into place. This is the default.
+  --link                    Symlink files/directories back to this repo.
+  --platform linux|mac|hep  Override auto-detected platform.
+  --machine NAME            HEP machine name for selecting machine_aliases
+                            (default: hostname -s). Known: lxplus, sneezy,
+                            sleepy, gpu_farm.
+  -y, --yes                 Do not prompt before replacing existing targets.
+  -n, --dry-run             Show what would happen without changing files.
+  --no-backup               Do not move existing targets to a backup first.
+  -h, --help                Show this help.
 
 Environment:
   DOTFILES_BACKUP_DIR  Override the backup directory.
@@ -49,6 +59,16 @@ parse_args() {
                 ;;
             --link)
                 MODE="link"
+                ;;
+            --platform)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--platform requires a value (linux|mac|hep)"; exit 2; }
+                PLATFORM="$1"
+                ;;
+            --machine)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--machine requires a value (e.g. lxplus, sneezy)"; exit 2; }
+                MACHINE="$1"
                 ;;
             -y|--yes)
                 ASSUME_YES=1
@@ -209,12 +229,46 @@ restore_path() {
     fi
 }
 
+restore_hep() {
+    local repo_root="$1"
+    local machine="${MACHINE:-}"
+    if [[ -z "$machine" ]]; then
+        machine="$(hostname -s 2>/dev/null || hostname)"
+    fi
+
+    log_info "HEP restore for machine: $machine"
+
+    restore_path "$repo_root/hep/bash/.bashrc"         "$HOME/.bashrc"
+    restore_path "$repo_root/hep/bash/.bash_aliases"   "$HOME/.bash_aliases"
+    restore_path "$repo_root/hep/bash/.bash_config"    "$HOME/.bash_config"
+    restore_path "$repo_root/hep/bash/.bash_functions" "$HOME/.bash_functions"
+
+    local aliases_file="$repo_root/hep/machine_aliases/$machine"
+    if [[ -f "$aliases_file" ]]; then
+        restore_path "$aliases_file" "$HOME/.machine_aliases"
+    else
+        log_warn "No machine_aliases file for '$machine'. Available: $(ls "$repo_root/hep/machine_aliases/" 2>/dev/null | tr '\n' ' ')"
+        log_warn "Re-run with --machine NAME to select one."
+    fi
+}
+
+restore_mac() {
+    local repo_root="$1"
+    # mac/setup.sh does not understand --dry-run; warn before it makes real changes.
+    [[ "$DRY_RUN" -eq 1 ]] && log_warn "--dry-run is not supported for mac platform: setup.sh will run and make real changes"
+    log_info "Mac restore via mac/setup.sh"
+    cd "$repo_root/mac"
+    exec bash setup.sh
+}
+
 restore_all() {
     local repo_root="$1"
     local zsh_file filename
 
     # SSH
     restore_path "$repo_root/ssh/config" "$HOME/.ssh/config"
+    # SSH is strict about directory permissions; fix regardless of whether we just created it.
+    [[ -d "$HOME/.ssh" ]] && run chmod 700 "$HOME/.ssh"
 
     # Git
     restore_path "$repo_root/git/.gitconfig" "$HOME/.gitconfig"
@@ -260,16 +314,39 @@ main() {
     timestamp="$(date +%Y%m%d-%H%M%S)"
     BACKUP_ROOT="${DOTFILES_BACKUP_DIR:-$HOME/.dotfiles-backup/$timestamp}"
 
+    if [[ -z "$PLATFORM" ]]; then
+        PLATFORM="$(detect_platform)"
+    fi
+
     log_info "Repo root: $repo_root"
+    log_info "Platform:  $PLATFORM"
     log_info "Mode: $MODE"
-    [[ "$USE_BACKUP" -eq 1 ]] && log_info "Backup root: $BACKUP_ROOT"
     [[ "$DRY_RUN" -eq 1 ]] && log_warn "Dry run only; no files will be changed."
 
-    check_deps
-    restore_all "$repo_root"
-
-    log_success "Dotfile restoration complete."
-    log_info "Run 'exec zsh' or restart your terminal to apply shell changes."
+    case "$PLATFORM" in
+        linux)
+            [[ "$USE_BACKUP" -eq 1 ]] && log_info "Backup root: $BACKUP_ROOT"
+            check_deps
+            restore_all "$repo_root"
+            log_success "Dotfile restoration complete."
+            log_info "Run 'exec zsh' or restart your terminal to apply shell changes."
+            ;;
+        hep)
+            # rsync is not used in HEP restore (individual files only, no dirs),
+            # so skip check_deps to avoid requiring rsync on clusters that lack it.
+            [[ "$USE_BACKUP" -eq 1 ]] && log_info "Backup root: $BACKUP_ROOT"
+            restore_hep "$repo_root"
+            log_success "HEP dotfile restoration complete."
+            log_info "Run 'source ~/.bashrc' to apply shell changes."
+            ;;
+        mac)
+            restore_mac "$repo_root"
+            ;;
+        *)
+            log_error "Unknown platform: $PLATFORM"
+            exit 1
+            ;;
+    esac
 }
 
 main "$@"
