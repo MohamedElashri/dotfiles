@@ -49,26 +49,6 @@ Save your current cluster dotfiles back into this directory:
 
 ---
 
-## Directory Layout
-
-```
-hep/
-├── bash/
-│   ├── .bashrc           # sources all bash modules below
-│   ├── .bash_aliases     # common command aliases
-│   ├── .bash_config      # HISTCONTROL, shopt, PATH, dircolors
-│   └── .bash_functions   # cl(), extract(), cht(), freq_cmd(), fcount(), …
-├── machine_aliases/
-│   ├── lxplus            # LHCb proxy, AFS/EOS navigation, kinit, ktmux()
-│   ├── sneezy            # conda, module load gcc/cuda, mydata alias
-│   ├── sleepy            # CUDA paths, conda, LHCb source, B-physics aliases
-│   └── gpu_farm          # Allen/LHCb GPU aliases, CUDA/ONNX/TensorRT exports
-└── scripts/
-    └── uc_jupyter.zsh    # remote Jupyter launcher with SSH port forwarding
-```
-
----
-
 ## Adding a New Machine
 
 1. Log in to the machine and set up `~/.machine_aliases` with any host-specific
