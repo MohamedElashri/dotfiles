@@ -1,83 +1,174 @@
 # dotfiles
 
-Personal dotfiles designed to run on more than one Linux machine.
+Personal dotfiles for Linux workstations, macOS, and HEP remote clusters — managed from a single repository.
+
+## Platforms
+
+| Platform | Detection | Description |
+|----------|-----------|-------------|
+| `linux`  | default on Linux | Local machines, devcontainers, VPS nodes |
+| `mac`    | `uname == Darwin` | macOS — managed via Homebrew and stow |
+| `hep`    | AFS/CVMFS mounts or hostname patterns | CERN lxplus, UC/GEOP clusters (sneezy, sleepy, goofy), GPU farm |
+
+Platform is auto-detected. Override with `--platform linux|mac|hep`.
+
+---
 
 ## Quick Start
 
-Clone the repository, then run:
+### Linux / VPS / devcontainer
 
 ```bash
+git clone https://github.com/MohamedElashri/dotfiles ~/projects/dotfiles
+cd ~/projects/dotfiles
 ./bootstrap.sh --yes
 ```
 
-The default bootstrap behavior is conservative:
+Installs base packages (`curl git rsync zsh`), then restores dotfiles as symlinks.
 
-- detect the package manager and install only base dependencies: `curl`, `git`, `rsync`, `zsh`
-- restore dotfiles as symlinks into `$HOME`
-- skip optional tool installers
-- back up replaced files under `~/.dotfiles-backup/<timestamp>/`
-
-To install optional tools too:
+### macOS
 
 ```bash
-./bootstrap.sh --yes --optional-tools
+git clone https://github.com/MohamedElashri/dotfiles ~/projects/dotfiles
+cd ~/projects/dotfiles
+./bootstrap.sh --platform mac --yes
 ```
 
-Optional tools currently mean Oh My Zsh, Starship, Atuin, and Rust.
+Dispatches to `mac/setup.sh`, which installs Homebrew packages and stows configs.
 
-## Restore Only
-
-Use `restore` when dependencies are already installed:
+### HEP cluster (lxplus, sneezy, sleepy, …)
 
 ```bash
-./restore --link
-./restore --copy
-./restore --link --dry-run
+git clone https://github.com/MohamedElashri/dotfiles ~/dotfiles
+cd ~/dotfiles
+./bootstrap.sh --platform hep --yes
 ```
 
-`--link` keeps `$HOME` files pointing at this repo. `--copy` copies files into
-place. Existing targets are moved to `~/.dotfiles-backup/<timestamp>/` before
-replacement unless `--no-backup` is passed.
+Skips package installation (no root on cluster). On lxplus, where the hostname
+rotates (e.g. `lxplus901`), pass `--machine lxplus` to select the right aliases file:
+
+```bash
+./bootstrap.sh --platform hep --machine lxplus --yes
+```
+
+---
+
+## Backup
+
+Save your current `$HOME` dotfiles back into the repo before committing:
+
+```bash
+./backup                        # auto-detect platform
+./backup --platform hep --machine lxplus
+./backup --platform mac
+```
+
+On HEP machines, `~/.machine_aliases` is saved under `hep/machine_aliases/<machine>`.
+On macOS, the backup script lives at `mac/backup` and is invoked automatically.
+
+---
+
+## Restore
+
+Use `restore` directly when bootstrap has already run and you only want to sync files:
+
+```bash
+./restore --link                # symlink files back to this repo (default)
+./restore --copy                # copy files into place
+./restore --link --dry-run      # show what would happen, change nothing
+./restore --platform hep --machine sneezy
+```
+
+Options:
+
+| Flag | Description |
+|------|-------------|
+| `--link` | Symlink `$HOME` entries to this repo. Default. |
+| `--copy` | Copy files; useful when the repo is on a network share. |
+| `--platform NAME` | Override auto-detected platform. |
+| `--machine NAME` | HEP only: pick the `hep/machine_aliases/<NAME>` file. |
+| `-y, --yes` | Skip all confirmation prompts. |
+| `-n, --dry-run` | Print what would happen without touching anything. |
+| `--no-backup` | Do not move replaced targets to a backup directory. |
+
+Replaced files are moved to `~/.dotfiles-backup/<timestamp>/` unless `--no-backup` is passed.
+
+---
+
+## Repository Layout
+
+```
+dotfiles/
+├── backup              # unified backup script (linux | hep | mac)
+├── restore             # unified restore script
+├── bootstrap.sh        # bootstrap: install deps then restore
+├── lib/
+│   └── platform.sh     # shared detect_platform() function
+│
+├── bash/               # Linux bash config
+│   └── .bashrc
+├── git/                # git config (all platforms)
+│   ├── .gitconfig
+│   └── .stCommitMsg
+├── sh/                 # POSIX login shell
+│   └── .profile
+├── ssh/                # SSH client config
+│   └── config
+├── zsh/                # Zsh config (Linux)
+│   ├── .zshenv
+│   ├── .zprofile
+│   ├── .zshrc
+│   ├── core/           # PATH, options, completion, Oh My Zsh
+│   ├── aliases/        # aliases grouped by domain
+│   ├── functions/      # shell functions grouped by domain
+│   └── integrations/   # optional tool hooks (conda, nvm, atuin, …)
+├── cli/                # user scripts (restored to ~/cli/)
+├── terminals/          # terminal emulator configs
+│   ├── ghostty/
+│   └── waveterm/
+├── templates/
+│   └── local/          # example local-override files (not installed)
+│
+├── hep/                # HEP cluster configs (see hep/README.md)
+│   ├── bash/           # bash-only setup for clusters
+│   ├── machine_aliases/# per-machine alias files
+│   └── scripts/        # helper scripts (Jupyter launcher, …)
+│
+└── mac/                # macOS configs (see mac/README.md)
+    ├── setup.sh
+    ├── backup
+    ├── lists/          # Homebrew package lists
+    └── configs/        # all macOS app/tool configs
+```
+
+---
 
 ## Machine-Specific Overrides
 
-Do not fork the repo for host-specific paths or secrets. Put local-only files in:
+Do not fork the repo for host-specific paths or secrets. Put local-only files here instead:
 
-```text
-~/.config/dotfiles/environment.local.zsh
-~/.config/dotfiles/zshrc.local.zsh
-~/.environment.local.zsh
-~/.dotfiles.local.zsh
+```
+~/.config/dotfiles/zshrc.local.zsh   # loaded last by .zshrc
+~/.dotfiles.local.zsh                 # fallback location
 ```
 
 Examples of things that belong there:
 
-- machine-specific PATH entries
+- machine-specific `PATH` entries
 - work-only aliases
 - private tokens or environment variables
-- host-specific SSH or cluster helpers
+- host-specific cluster helpers
 
-Templates are provided in `templates/local/`. They are examples only and are
-not installed by `bootstrap.sh` or `restore`.
+Templates live in `templates/local/` and are not installed automatically.
 
-## Shell Layout
+---
 
-- `zsh/.zshenv`: minimal zsh setup loaded by every zsh process
-- `zsh/.zprofile`: zsh login-shell setup
-- `zsh/.zshrc`: interactive zsh setup
-- `zsh/core/`: PATH, options, completion, and Oh My Zsh setup
-- `zsh/aliases/`: simple aliases grouped by domain
-- `zsh/functions/`: shell functions grouped by domain
-- `zsh/integrations/`: optional external tool hooks
-- `zsh/*.zsh`: compatibility wrappers for older installs
-- `bash/.bashrc`: interactive bash setup
-- `sh/.profile`: POSIX login-shell setup
-- `cli/`: user scripts restored to `~/cli`
+## Optional Tools (Linux only)
 
-The zsh config skips missing tools and paths. For example, missing `nvm`,
-Homebrew, TeX Live, Starship, Atuin, or optional Oh My Zsh plugins should not
-break startup.
+```bash
+./bootstrap.sh --optional-tools
+```
 
-`restore` installs the zsh module directories under
-`~/.config/dotfiles/zsh/`. In `--link` mode they point back to this repository;
-in `--copy` mode they are copied into place.
+Installs if missing: **Oh My Zsh**, **Starship**, **Atuin**, **Rust**.
+Each tool is skipped if already present. Individual tools can be installed by
+running the corresponding `install_*` function from `bootstrap.sh`.
