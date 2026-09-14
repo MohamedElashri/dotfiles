@@ -1,6 +1,7 @@
 """Integration checks using disposable homes; never source the user's startup files."""
 from pathlib import Path
 import subprocess
+import shutil
 import tempfile
 import unittest
 
@@ -161,6 +162,36 @@ class InstallTests(unittest.TestCase):
         result = self.run_cmd('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic', 'alias ll; alias la')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "alias ll='ls -alF'\nalias la='ls -A'\n")
+
+    def test_saved_profile_without_final_newline(self):
+        config = self.home/'.config/dotfiles'
+        config.mkdir(parents=True)
+        (config/'profile').write_text('hep')
+        self.install()
+        self.assertEqual((config/'profile').read_text(), 'hep\n')
+        self.assertFalse((self.home/'.zshrc').exists())
+
+    def test_reinstall_after_checkout_moves(self):
+        for profile in ['personal', 'hep']:
+            with self.subTest(profile=profile):
+                original = self.home/f'original checkout {profile}'
+                moved = self.home/f'moved checkout {profile}'
+                target_home = self.home/f'home {profile}'
+                target_home.mkdir()
+                shutil.copytree(ROOT, original, ignore=shutil.ignore_patterns('.git', '.claude', 'fonts', '__pycache__'))
+                env = dict(self.env, HOME=str(target_home), ZDOTDIR=str(target_home))
+                result = self.run_cmd('bash', str(original/'install.sh'), '--profile', profile, env=env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                original.rename(moved)
+                result = self.run_cmd('bash', str(moved/'install.sh'), env=env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), profile)
+                self.assertEqual((target_home/'.profile').resolve(), moved/'shell/.profile')
+                self.assertEqual((target_home/'.bashrc').resolve(), moved/'bash/.bashrc')
+                self.assertFalse((target_home/'.config/dotfiles/site.bash').exists())
+                result = self.run_cmd('sh', '-c', '. "$HOME/.profile"; command -v terminal_quran.sh', env=env)
+                self.assertEqual(result.stdout.strip(), str(moved/'bin/terminal_quran.sh'))
+                self.assertEqual(result.stderr, '')
 
     def test_invalid_arguments_make_no_changes(self):
         for args in [('--profile', '../other'), ('--profile',), ('--copy',), ('--platform','mac','--profile','hep')]:

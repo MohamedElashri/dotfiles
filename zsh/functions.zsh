@@ -404,13 +404,6 @@ ii() {
   echo
 }
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  if grep -q Microsoft /proc/version 2>/dev/null; then
-    alias open='explorer.exe'
-  else
-    alias open='xdg-open'
-  fi
-fi
 
 # Deliberately silly terminal tricks.
 

@@ -2,9 +2,19 @@
 # Link configuration only. Compatible with the Bash shipped by macOS.
 set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+: "${HOME:?HOME must be set}"
 PROFILE=personal
+PREVIOUS_ROOT=$ROOT
+# The installed profile link records the old checkout even after it has moved.
+profile_link=$(readlink "$HOME/.config/dotfiles/profile" 2>/dev/null || true)
+case "$profile_link" in
+  /*/setup/profiles/personal|/*/setup/profiles/hep)
+    PREVIOUS_ROOT=${profile_link%/setup/profiles/*}
+    PROFILE=${profile_link##*/}
+    ;;
+esac
 if [ -r "$HOME/.config/dotfiles/profile" ]; then
-  read -r PROFILE < "$HOME/.config/dotfiles/profile"
+  IFS= read -r PROFILE < "$HOME/.config/dotfiles/profile" || true
 fi
 OS=$(uname -s)
 DRY_RUN=0
@@ -21,7 +31,6 @@ done
 case "$PROFILE" in personal|hep) ;; *) echo 'Invalid profile' >&2; exit 2 ;; esac
 case "$OS" in Linux|Darwin) ;; *) echo "Unsupported OS: $OS" >&2; exit 2 ;; esac
 [ "$PROFILE" != hep ] || [ "$OS" = Linux ] || { echo 'HEP profile requires Linux' >&2; exit 2; }
-: "${HOME:?HOME must be set}"
 BACKUP="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)-$$"
 sources=(); targets=()
 add() { sources+=("$ROOT/$1"); targets+=("$HOME/$2"); }
@@ -30,8 +39,11 @@ add bash/.bashrc .bashrc
 # Do not replace site login files. Supply .profile only for a fresh home.
 if [ ! -e "$HOME/.profile" ] && [ ! -L "$HOME/.profile" ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
   add shell/.profile .profile
-elif [ -L "$HOME/.profile" ] && [ "$(readlink "$HOME/.profile")" = "$ROOT/sh/.profile" ]; then
-  add shell/.profile .profile
+elif [ -L "$HOME/.profile" ]; then
+  case "$(readlink "$HOME/.profile")" in
+    "$ROOT/sh/.profile"|"$ROOT/shell/.profile"|"$PREVIOUS_ROOT/sh/.profile"|"$PREVIOUS_ROOT/shell/.profile")
+      add shell/.profile .profile ;;
+  esac
 fi
 if [ "$PROFILE" = personal ]; then
   add zsh/.zshenv .zshenv
@@ -40,9 +52,10 @@ if [ "$PROFILE" = personal ]; then
   add config/git/.gitconfig .gitconfig
   add config/git/.stCommitMsg .stCommitMsg
   add config/git/ignore .config/dotfiles/git-ignore
+  add config/ssh/config .ssh/config
+  add config/terminals/waveterm/config .waveterm/config
   if [ "$OS" = Darwin ]; then
     add config/git/mac.gitconfig .config/dotfiles/git-platform
-    add config/mac/ssh/config .ssh/config
     add config/mac/zsh/.p10k.zsh .p10k.zsh
     add config/mac/cli/atuin/config.toml .config/atuin/config.toml
     add config/mac/cli/bat/config .config/bat/config
@@ -51,12 +64,9 @@ if [ "$PROFILE" = personal ]; then
     add config/mac/rio-terminal .config/rio
     add config/mac/vscode/settings.json 'Library/Application Support/Code/User/settings.json'
     add config/mac/zed/settings.json .config/zed/settings.json
-    add config/mac/waveterm .waveterm/config
   else
     add config/git/linux.gitconfig .config/dotfiles/git-platform
-    add config/ssh/config .ssh/config
     add config/terminals/ghostty .config/ghostty
-    add config/terminals/waveterm/config .waveterm/config
   fi
 fi
 # Validate all sources before making any changes.

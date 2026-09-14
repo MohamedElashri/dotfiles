@@ -42,7 +42,7 @@ interactive Bash login; they are not rewritten automatically.
 | OS-specific aliases | `platform/linux.sh`, `platform/mac.sh` |
 | Shared cluster settings and Bash helpers | `hep/common.bash` |
 | Settings for one cluster | `hep/lxplus.bash`, `hep/sneezy.bash`, etc. |
-| Git and SSH | `config/git/`, `config/ssh/` (macOS SSH: `config/mac/ssh/`) |
+| Git and SSH | `config/git/`, `config/ssh/` |
 | Application settings | `config/terminals/`, `config/mac/` |
 | Executable personal scripts | `bin/` |
 
@@ -54,6 +54,7 @@ Application configs may be rewritten by their applications. Check `git diff`
 before committing; do not automatically import settings or package inventories.
 The personal profile installs Git, SSH and selected app configs; the HEP profile
 installs Bash and its profile selection only, leaving site Git/SSH settings alone.
+SSH and Wave Terminal use one shared config on both operating systems.
 The explicit source/destination list is in `install.sh`.
 
 ## Local settings
