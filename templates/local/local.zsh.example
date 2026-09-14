@@ -1,0 +1,3 @@
+# Copy to ~/.config/dotfiles/local.zsh. Loaded last in interactive Zsh.
+# alias worktree-status='git -C "$HOME/work" status'
+# export RUN_QURAN_VERSE_ON_STARTUP=false

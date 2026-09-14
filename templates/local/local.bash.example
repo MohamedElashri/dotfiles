@@ -1,0 +1,2 @@
+# Copy to ~/.config/dotfiles/local.bash. Loaded last in interactive Bash.
+# alias worktree-status='git -C "$HOME/work" status'

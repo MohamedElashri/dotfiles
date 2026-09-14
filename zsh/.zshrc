@@ -1,53 +1,39 @@
-# ~/.zshrc: interactive zsh setup.
-#
-# Load order:
-#   1. core/         - PATH helpers, options, completion, Oh My Zsh.
-#   2. aliases/      - simple command aliases grouped by domain.
-#   3. functions/    - shell functions grouped by domain.
-#   4. integrations/ - optional external tool hooks.
-#   5. local files   - machine-specific, untracked overrides.
+# Interactive Zsh: explicit load order, shared on Linux and macOS.
+[[ -o interactive ]] || return 0
+export DOTFILES_ROOT="${${${(%):-%N}:A}:h:h}"
+source "$DOTFILES_ROOT/shell/env.sh"
+source "$DOTFILES_ROOT/zsh/environment.zsh"
+# Small interactive shell options and feature flags.
 
-_dotfiles_source_if_readable() {
-  [[ -r "$1" ]] && source "$1"
-}
+# Disable bracketed paste mode if a terminal has trouble with it.
+# if [[ $- == *i* ]]; then
+#   bind 'set enable-bracketed-paste off'
+# fi
 
-_dotfiles_source_dir() {
-  local dir="$1"
-  local file
+export RUN_QURAN_VERSE_ON_STARTUP="${RUN_QURAN_VERSE_ON_STARTUP:-true}"
 
-  [[ -d "$dir" ]] || return 0
-  for file in "$dir"/*.zsh(N); do
-    _dotfiles_source_if_readable "$file"
-  done
-}
+# History options. Oh My Zsh (lib/history.zsh) already enables: extended_history,
+# hist_expire_dups_first, hist_ignore_dups, hist_ignore_space, hist_verify, and
+# share_history (which implies inc_append_history). Only the extras live here.
+setopt bang_hist            # ! triggers history expansion
+setopt hist_find_no_dups    # don't repeat duplicates when searching (Ctrl-r)
+setopt hist_ignore_all_dups # drop duplicates anywhere, not just adjacent
+setopt hist_reduce_blanks   # collapse multiple blanks in stored entries
 
-_dotfiles_zshrc_file="${${(%):-%N}:A}"
-export DOTFILES_ZSH_DIR="${DOTFILES_ZSH_DIR:-$HOME/.config/dotfiles/zsh}"
+source "$DOTFILES_ROOT/zsh/tools.zsh"
+source "$DOTFILES_ROOT/shell/aliases.sh"
+source "$DOTFILES_ROOT/zsh/aliases.zsh"
+source "$DOTFILES_ROOT/zsh/functions.zsh"
+bindkey -s "^a" "nvims\n"
+case "$(uname -s)" in
+  Darwin) source "$DOTFILES_ROOT/platform/mac.sh"
+          [[ -r "$HOME/.iterm2_shell_integration.zsh" ]] && source "$HOME/.iterm2_shell_integration.zsh" ;;
+  Linux) source "$DOTFILES_ROOT/platform/linux.sh" ;;
+esac
+[[ -r "$HOME/.config/dotfiles/local.zsh" ]] && source "$HOME/.config/dotfiles/local.zsh"
 
-# Allow the repo copy of .zshrc to run before restore has installed modules.
-if [[ ! -d "$DOTFILES_ZSH_DIR/core" ]]; then
-  export DOTFILES_ZSH_DIR="${_dotfiles_zshrc_file:h}"
+# Run after local overrides so the startup-message toggle takes effect.
+if [[ -t 1 && "$RUN_QURAN_VERSE_ON_STARTUP" == true && -x "$DOTFILES_ROOT/bin/terminal_quran.sh" ]]; then
+  "$DOTFILES_ROOT/bin/terminal_quran.sh"
 fi
-
-_dotfiles_source_dir "$DOTFILES_ZSH_DIR/core"
-_dotfiles_source_dir "$DOTFILES_ZSH_DIR/aliases"
-_dotfiles_source_dir "$DOTFILES_ZSH_DIR/functions"
-_dotfiles_source_dir "$DOTFILES_ZSH_DIR/integrations"
-
-# Machine-local zsh customizations. These files are intentionally not tracked
-# by this repo and are useful for host-specific aliases, PATHs, and secrets.
-for _dotfiles_local_file in \
-  "$HOME/.config/dotfiles/zshrc.local.zsh" \
-  "$HOME/.dotfiles.local.zsh"
-do
-  _dotfiles_source_if_readable "$_dotfiles_local_file"
-done
-
-unset _dotfiles_local_file _dotfiles_zshrc_file
-unset -f _dotfiles_source_if_readable _dotfiles_source_dir
-unset -f _path_prepend _path_append _pathvar_prepend _omz_theme_exists _omz_add_plugin
-# sanad completion start
-fpath=("$HOME/.zsh/completions" $fpath)
-autoload -Uz compinit
-compinit
-# sanad completion end
+return 0

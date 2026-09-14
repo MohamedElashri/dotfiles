@@ -1,0 +1,5 @@
+# Optional workstation tools; install with your distribution package manager.
+curl
+git
+rsync
+zsh

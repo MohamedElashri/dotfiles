@@ -87,19 +87,11 @@ fi
 # colored GCC warnings and errors
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01:quote=01'
 
-# some more ls aliases
-alias ll='ls -alF'
-alias la='ls -A'
 alias l='ls -CF'
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
-
-# Alias definitions.
-if [ -f "$HOME/.bash_aliases" ]; then
-    . "$HOME/.bash_aliases"
-fi
 
 # enable programmable completion features.
 if ! shopt -oq posix; then
@@ -110,30 +102,35 @@ if ! shopt -oq posix; then
   fi
 fi
 
-# Personal toolchains and shell integrations.
-path_prepend() {
-    [ -d "$1" ] || return
-    case ":$PATH:" in
-        *:"$1":*) ;;
-        *) PATH="$1:$PATH" ;;
-    esac
-}
 
-path_prepend "$HOME/.cargo/bin"
-path_prepend "$HOME/.atuin/bin"
-path_prepend "$HOME/.pixi/bin"
-export PATH
-
-[ -r "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
-[ -r "$HOME/.atuin/bin/env" ] && . "$HOME/.atuin/bin/env"
-
-# Atuin's bash hook relies on preexec support and is only useful in a real
-# terminal. The guard avoids stty noise for scripted `bash -i -c ...` runs.
-if [ -t 0 ]; then
-    [ -r "$HOME/.bash-preexec.sh" ] && . "$HOME/.bash-preexec.sh"
-    if command -v atuin >/dev/null 2>&1; then
-        eval "$(atuin init bash)"
-    fi
+# Resolve this file through symlinks without requiring GNU readlink -f.
+_dotfiles_file=${BASH_SOURCE[0]}
+while [ -L "$_dotfiles_file" ]; do
+  _dotfiles_dir=$(cd -P "$(dirname "$_dotfiles_file")" && pwd)
+  _dotfiles_file=$(readlink "$_dotfiles_file")
+  case $_dotfiles_file in /*) ;; *) _dotfiles_file=$_dotfiles_dir/$_dotfiles_file ;; esac
+done
+DOTFILES_ROOT=$(cd -P "$(dirname "$_dotfiles_file")/.." && pwd)
+export DOTFILES_ROOT
+unset _dotfiles_file _dotfiles_dir
+# Preserve existing system/site Bash initialization during migration.
+[ -r "$HOME/.config/dotfiles/site.bash" ] && . "$HOME/.config/dotfiles/site.bash"
+. "$DOTFILES_ROOT/shell/env.sh"
+. "$DOTFILES_ROOT/shell/aliases.sh"
+# Preserve the Bash listing shortcuts; HEP overrides these below.
+alias ll='ls -alF'
+alias la='ls -A'
+case "$(uname -s)" in
+  Darwin) . "$DOTFILES_ROOT/platform/mac.sh" ;;
+  Linux) . "$DOTFILES_ROOT/platform/linux.sh" ;;
+esac
+. "$DOTFILES_ROOT/bash/tools.bash"
+_dotfiles_profile=personal
+[ -r "$HOME/.config/dotfiles/profile" ] && read -r _dotfiles_profile < "$HOME/.config/dotfiles/profile"
+if [ "${DOTFILES_PROFILE:-$_dotfiles_profile}" = hep ]; then
+  . "$DOTFILES_ROOT/hep/common.bash"
+  . "$DOTFILES_ROOT/hep/select.bash"
 fi
-
-unset -f path_prepend
+unset _dotfiles_profile
+[ -r "$HOME/.config/dotfiles/local.bash" ] && . "$HOME/.config/dotfiles/local.bash"
+return 0

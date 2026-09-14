@@ -1,7 +1,3 @@
-# Old nested repos (now consolidated into hep/ and mac/)
-dotfiles-hep/
-dotfiles-mac/
-
 # macOS
 .DS_Store
 
@@ -11,3 +7,9 @@ dotfiles-mac/
 # Editor
 .vscode/
 *.swp
+
+# Python verification artifacts
+__pycache__/
+
+# Machine-local agent permissions
+.claude/settings.local.json
