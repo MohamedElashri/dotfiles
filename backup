@@ -21,6 +21,8 @@ log_success() { echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $1"; }
 
 PLATFORM=""
 MACHINE=""
+COMMIT=0
+COMMIT_MSG=""
 
 usage() {
     cat <<'EOF'
@@ -32,6 +34,9 @@ Options:
                             file (default: hostname -s).  Use this on lxplus
                             nodes whose hostnames rotate (e.g. lxplus901 →
                             specify --machine lxplus).
+  --commit                  Commit pending changes into the repo after backing
+                            up (default message generated from host/date).
+  --message MSG             Commit message to use with --commit.
   -h, --help                Show this help.
 
 Platform detection (automatic):
@@ -55,6 +60,14 @@ parse_args() {
                 [[ -z "${1:-}" ]] && { log_error "--machine requires a value (e.g. lxplus, sneezy)"; exit 2; }
                 MACHINE="$1"
                 ;;
+            --commit)
+                COMMIT=1
+                ;;
+            --message)
+                shift
+                [[ -z "${1:-}" ]] && { log_error "--message requires a value"; exit 2; }
+                COMMIT_MSG="$1"
+                ;;
             -h|--help)
                 usage
                 exit 0
@@ -74,35 +87,40 @@ parse_args() {
 backup_item() {
     local src="$1"
     local dest_dir="$2"
+    local real_src real_dest dest_file
 
     if [[ -d "$src" ]]; then
-        # If src resolves to the same path as dest_dir, it's already in the repo
-        # (happens after restore --link on directories).
-        local real_src; real_src="$(realpath "$src" 2>/dev/null || readlink -f "$src")"
-        local real_dest; real_dest="$(realpath "$dest_dir" 2>/dev/null || readlink -f "$dest_dir" 2>/dev/null || true)"
+        # If src resolves to the same path as dest_dir, it's already the repo
+        # dir (happens after restore --link on directories).
+        real_src="$(realpath "$src" 2>/dev/null || readlink -f "$src")"
+        real_dest="$(realpath "$dest_dir" 2>/dev/null || readlink -f "$dest_dir" 2>/dev/null || true)"
         if [[ -n "$real_dest" && "$real_src" == "$real_dest" ]]; then
-            log_info "Already in repo (skipping): $src"
+            log_info "Tracked via symlink (already in repo): $src"
             return 0
         fi
         mkdir -p "$dest_dir"
-        if rsync -aL "$src/" "$dest_dir/"; then
+        # -L dereferences symlinks, -c checks content (not just size+mtime),
+        # --delete mirrors deletions too.
+        if rsync -aLc --delete "$src/" "$dest_dir/"; then
             log_success "Backed up dir  $src → $dest_dir"
         else
             log_error "Failed to back up dir: $src"
         fi
     elif [[ -f "$src" ]]; then
-        local dest_file="$dest_dir/$(basename "$src")"
-        # Skip if src and dest resolve to the same inode (symlink into repo).
+        dest_file="$dest_dir/$(basename "$src")"
+        real_src="$(realpath "$src" 2>/dev/null || readlink -f "$src")"
+        # Skip if src and dest resolve to the same path (symlink into repo).
         if [[ -e "$dest_file" ]]; then
-            local real_src; real_src="$(realpath "$src" 2>/dev/null || readlink -f "$src")"
-            local real_dest; real_dest="$(realpath "$dest_file" 2>/dev/null || readlink -f "$dest_file" 2>/dev/null || true)"
+            real_dest="$(realpath "$dest_file" 2>/dev/null || readlink -f "$dest_file" 2>/dev/null || true)"
             if [[ -n "$real_dest" && "$real_src" == "$real_dest" ]]; then
-                log_info "Already in repo (skipping): $src"
+                log_info "Tracked via symlink (already in repo): $src"
                 return 0
             fi
         fi
         mkdir -p "$dest_dir"
-        if cp -L "$src" "$dest_dir/"; then
+        if [[ -e "$dest_file" ]] && cmp -s -- "$src" "$dest_file"; then
+            log_info "Up to date (unchanged): $src"
+        elif cp -f -L "$src" "$dest_dir/"; then
             log_success "Backed up file $src → $dest_dir"
         else
             log_error "Failed to back up file: $src"
@@ -110,6 +128,53 @@ backup_item() {
     else
         log_warn "Not found (skipping): $src"
     fi
+}
+
+# ── git helpers ──────────────────────────────────────────────────────────────
+
+show_repo_summary() {
+    local repo="$1"
+    if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        log_warn "Not a git repository: $repo (skipping summary)"
+        return 0
+    fi
+
+    local pending stat
+    pending="$(git -C "$repo" status --porcelain)"
+    if [[ -z "$pending" ]]; then
+        log_info "No pending changes in the repo — dotfiles are up to date."
+        return 0
+    fi
+
+    log_info "Pending dotfile changes:"
+    git -C "$repo" -c color.status=never status --short
+    stat="$(git -C "$repo" diff --stat)"
+    if [[ -n "$stat" ]]; then
+        echo
+        echo "$stat"
+    fi
+}
+
+commit_changes() {
+    local repo="$1"
+    if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        log_error "Cannot commit: not a git repository: $repo"
+        exit 1
+    fi
+
+    local msg count
+    msg="${COMMIT_MSG:-backup: $(hostname -s 2>/dev/null || hostname) on $(date +%Y-%m-%d_%H:%M:%S)}"
+
+    git -C "$repo" add -A
+    if git -C "$repo" diff --cached --quiet; then
+        log_info "Nothing to commit — repo is already clean."
+        return 0
+    fi
+
+    git -C "$repo" commit -q -m "$msg"
+
+    count="$(git -C "$repo" show --name-only --pretty=format: HEAD | sed '/^$/d' | wc -l | tr -d ' ')"
+    log_success "Committed ${count} file(s): $msg"
 }
 
 # ── platform: linux ──────────────────────────────────────────────────────────
@@ -179,7 +244,15 @@ main() {
         *)     log_error "Unknown platform: $PLATFORM"; exit 1 ;;
     esac
 
-    log_success "Backup complete. Review with: git diff --stat"
+    show_repo_summary "$repo_root"
+
+    if [[ "$COMMIT" -eq 1 ]]; then
+        commit_changes "$repo_root"
+    else
+        log_info "Pending changes are NOT committed. Re-run with --commit to save them."
+    fi
+
+    log_success "Backup complete."
 }
 
 main "$@"
