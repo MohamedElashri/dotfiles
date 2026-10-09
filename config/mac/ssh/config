@@ -1,0 +1,3 @@
+# Hostnames, usernames and forwarding rules stay in the local file.
+# It is intentionally outside this public repository.
+Include ~/.ssh/config.local

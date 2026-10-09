@@ -1,7 +1,4 @@
 # macOS integrations around the shared shell setup.
-if [[ "$(uname -s)" == Darwin ]]; then
-  [[ -r "$HOME/Library/Application Support/amazon-q/shell/zshrc.pre.zsh" ]] && source "$HOME/Library/Application Support/amazon-q/shell/zshrc.pre.zsh"
-fi
 typeset -gaU fpath
 fpath=("$HOME/.zsh/completion" "$HOME/.zsh/completions" $fpath)
 # Completion paths that must be set before Oh My Zsh runs compinit.
@@ -15,7 +12,13 @@ fi
 # The setup below filters this list against plugins actually installed on the
 # current machine, so missing optional plugins do not break shell startup.
 
-DOTFILES_OMZ_PLUGINS=(git zsh-autosuggestions you-should-use adguard-helper insult-zsh)
+if [[ "$(uname -s)" == Darwin ]]; then
+  DOTFILES_OMZ_PLUGINS=(history history-substring-search encode64 extract cp copypath copyfile autoupdate eza-zsh auto-notify zsh-apple-touchbar sublime git-extra-commands git zsh-syntax-highlighting zsh-autosuggestions tumult fd-zsh fzf-tab you-should-use insult-zsh)
+  CASE_SENSITIVE=true
+  ENABLE_CORRECTION=true
+else
+  DOTFILES_OMZ_PLUGINS=(git zsh-autosuggestions you-should-use adguard-helper insult-zsh)
+fi
 
 # Oh My Zsh framework setup.
 
@@ -28,7 +31,9 @@ _omz_theme_exists() {
 }
 
 if [[ -z "${ZSH_THEME-}" ]]; then
-  if _omz_theme_exists dracula-pro; then
+  if [[ "$(uname -s)" == Darwin && ${TERM_PROGRAM-} != WarpTerminal ]] && _omz_theme_exists powerlevel10k/powerlevel10k; then
+    ZSH_THEME="powerlevel10k/powerlevel10k"
+  elif _omz_theme_exists dracula-pro; then
     ZSH_THEME="dracula-pro"
   else
     ZSH_THEME="robbyrussell"
@@ -48,6 +53,12 @@ _omz_add_plugin "${DOTFILES_OMZ_PLUGINS[@]}"
 
 if [[ -r "$ZSH/oh-my-zsh.sh" ]]; then
   source "$ZSH/oh-my-zsh.sh"
+fi
+
+[[ "$(uname -s)" == Darwin ]] && source "$DOTFILES_ROOT/config/mac/zsh/highlighting.zsh"
+
+if [[ "$(uname -s)" == Darwin ]] && command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
 fi
 
 # Initialize completions once, including personal and sanad completions.
@@ -132,12 +143,11 @@ fi
 
 # Starship prompt. Load after Oh My Zsh so Starship owns the prompt.
 
-if [[ ${TERM:-dumb} != dumb ]] && command -v starship >/dev/null 2>&1; then
+if [[ ${TERM:-dumb} != dumb && ${ZSH_THEME-} != powerlevel10k/powerlevel10k ]] && command -v starship >/dev/null 2>&1; then
   eval "$(starship init zsh)"
 fi
 
 if [[ "$(uname -s)" == Darwin ]]; then
-  [[ -r "$HOME/Library/Application Support/amazon-q/shell/zshrc.post.zsh" ]] && source "$HOME/Library/Application Support/amazon-q/shell/zshrc.post.zsh"
   # Keep the existing macOS prompt when the framework provides p10k.
   if (( $+functions[p10k] )) && [[ -r "$HOME/.p10k.zsh" ]]; then
     source "$HOME/.p10k.zsh"

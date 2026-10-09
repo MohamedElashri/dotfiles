@@ -65,10 +65,9 @@
 
 
 [core]
-	excludesfile = /home/melashri/.gitignore
+    excludesfile = ~/.config/dotfiles/git-ignore
     whitespace = space-before-tab, trailing-space, cr-at-eol
   pager = delta
-	editor = flatpak run re.sonny.Commit
 
 [pager]
     log = rg -v '^    <!-- ' | delta  # or less

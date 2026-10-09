@@ -10,6 +10,7 @@ Clone this repository anywhere that will remain accessible to your shell, then r
 ```bash
 ./install.sh --dry-run          # preview; never writes or installs packages
 ./install.sh                    # Linux or macOS personal setup
+./install.sh --status           # check whether any managed file was replaced
 ./install.sh --profile hep      # Linux clusters: Bash only, no root required
 ```
 
@@ -19,14 +20,18 @@ AFS, or a university hostname. `--platform linux|mac` overrides the OS for previ
 or preparing a home directory. Package installation is separate: see [setup](setup/README.md).
 
 The installer backs up replaced files and links under
-`~/.dotfiles-backup/<timestamp>-<pid>/`, preserves existing login files, and leaves
-correct links alone. An existing Bash rc from outside this checkout is copied to
-`~/.config/dotfiles/site.bash` and loaded before personal settings, preserving site
-initialization such as `/etc/bashrc` and module definitions. Review this saved hook
-once during migration; it can also contain personal settings you want to move.
+`~/.dotfiles-backup/<timestamp>-<pid>/`, preserves existing site login files, and leaves
+correct links alone. On Linux, an existing Bash rc from outside this checkout is
+copied to `~/.config/dotfiles/site.bash` and loaded before personal settings,
+preserving site initialization such as `/etc/bashrc` and module definitions.
+Review this saved hook once during migration; it can also contain personal
+settings you want to move. On macOS, the previous Bash rc is backed up without
+being loaded as a site hook.
 If both an unmanaged rc and a site hook already exist, installation stops rather
-than overwriting the hook. Existing login files must source `~/.bashrc` for an
-interactive Bash login; they are not rewritten automatically.
+than overwriting the hook. Existing Bash login files must source `~/.bashrc` for an
+interactive Bash login; they are not rewritten automatically. On a personal Mac
+without a Bash login file, the installer links a tracked `.profile` that retains
+the macOS hooks and loads `.bashrc`.
 
 ## Where to edit
 
@@ -40,22 +45,74 @@ interactive Bash login; they are not rewritten automatically.
 | Zsh prompt, completion and tool initialization | `zsh/tools.zsh` |
 | Bash settings / integrations | `bash/.bashrc`, `bash/tools.bash` |
 | OS-specific aliases | `platform/linux.sh`, `platform/mac.sh` |
+| Mac Zsh aliases, functions, environment | `config/mac/zsh/` |
 | Shared cluster settings and Bash helpers | `hep/common.bash` |
 | Settings for one cluster | `hep/lxplus.bash`, `hep/sneezy.bash`, etc. |
 | Git and SSH | `config/git/`, `config/ssh/` |
 | Application settings | `config/terminals/`, `config/mac/` |
 | Executable personal scripts | `bin/` |
 
-For a change: edit, open a new shell, inspect `git diff`, then commit. On another
+For a change: edit, open a new shell, inspect `git diff`, then commit. Run
+`./install.sh --status` to catch an app that replaced a symlink with its own file;
+review and copy that file into the matching repo path before reinstalling. On another
 machine, pull and open a new shell. Run installation again only when destinations
 are added or the checkout moves. Keep the checkout available: copy mode is retired.
+
+## Private data
+
+This repository is public. Keep credentials, private keys, authentication state,
+tokens and machine-local permissions in their applications or local overrides.
+The installer links only selected settings files, never whole credential
+directories. VS Code settings are handled by Settings Sync outside this repo.
+
+Enable the included commit guard once per checkout:
+
+```bash
+git config --local core.hooksPath .githooks
+python3 scripts/check_private.py --worktree
+python3 scripts/check_private.py --history
+```
+
+The hooks check staged additions before each commit and reachable Git history
+before each push. They report file paths and finding types without displaying
+values. `.gitignore` blocks common credential
+paths, but the check also catches files added with `git add -f`. Review every
+diff before pushing; a pattern check cannot recognize every kind of private
+information. Git author email and cluster identifiers remain in current files
+and public Git history; this change does not rewrite that history. The hook setting
+is local to each clone and should be enabled
+again on another Mac.
 
 Application configs may be rewritten by their applications. Check `git diff`
 before committing; do not automatically import settings or package inventories.
 The personal profile installs Git, SSH and selected app configs; the HEP profile
 installs Bash and its profile selection only, leaving site Git/SSH settings alone.
-SSH and Wave Terminal use one shared config on both operating systems.
+SSH and Wave Terminal use separate Mac and Linux configs. Mac Wave files are
+linked individually so other application state can remain in its directory.
 The explicit source/destination list is in `install.sh`.
+
+### This Mac
+
+Run `./install.sh --dry-run` to review the exact links, then `./install.sh`.
+The first install saves the Mac's previous files in the printed backup directory.
+The Mac's gh aliases, Atuin settings, Wave widgets, prompt, and shell aliases
+have been captured in `config/mac/`. SSH routes remain in the private
+`~/.ssh/config.local`, loaded by the tracked SSH config. Copy that local file
+securely to another Mac if needed; do not commit it. Open a new terminal after
+installation. Edits to linked home files then appear directly in `git diff` here.
+The installer also links the Mac's asciinema, btop, Claude, micro, Vicinae,
+Karabiner-Elements, and Warp settings. It links individual files in each app's
+directory so generated state and unrelated files stay with the application.
+The former standalone Mac Zsh files were moved into the install backup after
+their active settings were migrated.
+Tmux uses built-in status styling, so its config does not depend on TPM plugins.
+
+Authentication files such as `~/.config/gh/hosts.yml` and SSH private keys stay
+outside this repository.
+DNSCrypt Proxy and OpenCode service endpoints are also kept in local app files.
+On another Mac, install the applications first, then run `./install.sh` and
+`./install.sh --status`. See [Mac setup notes](setup/README.md) for the
+applications and plugin settings that need separate installation.
 
 ## Local settings
 
@@ -113,13 +170,11 @@ python3 -B -m unittest discover -s tests -v
 ```
 
 Tests use temporary homes to verify dry runs, backup preservation, repeat installs,
-local overrides, Linux/macOS destination selection and cluster selection. macOS
-shell integration still needs a smoke test on an actual Mac.
+local overrides, Linux/macOS destination selection and cluster selection.
 
 ## Optional assets
 
-Application files that are not in the installer's explicit list (including fonts,
-iTerm2 preferences, Hyper, Nano, gh settings and the ShellHistory integration) remain available under
-`config/mac/` for manual use. They are not loaded by shell startup. The unfinished remote
+Installed fonts remain available under `config/mac/fonts/` for manual use; they
+are not loaded by shell startup. The unfinished remote
 Jupyter helper was archived with the legacy repositories; it was not used by
 shell startup and failed syntax validation.

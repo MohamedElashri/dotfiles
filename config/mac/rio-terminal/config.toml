@@ -61,7 +61,7 @@ padding-y = [12, 12]
 # This configuration only has effect if use-fork is disabled.
 #
 # Example:
-# working-dir = "/Users/melashri/Documents/"
+# working-dir = "~/Documents/"
 
 # Environment variables
 #

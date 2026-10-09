@@ -1,5 +1,16 @@
 # Interactive Zsh: explicit load order, shared on Linux and macOS.
 [[ -o interactive ]] || return 0
+if [[ "$(uname -s)" == Darwin ]]; then
+  # Retain the Mac's Powerlevel10k instant prompt.
+  if [[ ${TERM_PROGRAM-} == WarpTerminal ]]; then
+    typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
+  else
+    typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+    _p10k_cache="${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+    [[ -r "$_p10k_cache" ]] && source "$_p10k_cache"
+    unset _p10k_cache
+  fi
+fi
 export DOTFILES_ROOT="${${${(%):-%N}:A}:h:h}"
 source "$DOTFILES_ROOT/shell/env.sh"
 source "$DOTFILES_ROOT/zsh/environment.zsh"
@@ -24,6 +35,10 @@ source "$DOTFILES_ROOT/zsh/tools.zsh"
 source "$DOTFILES_ROOT/shell/aliases.sh"
 source "$DOTFILES_ROOT/zsh/aliases.zsh"
 source "$DOTFILES_ROOT/zsh/functions.zsh"
+if [[ "$(uname -s)" == Darwin ]]; then
+  source "$DOTFILES_ROOT/config/mac/zsh/functions.zsh"
+  source "$DOTFILES_ROOT/config/mac/zsh/aliases.zsh"
+fi
 bindkey -s "^a" "nvims\n"
 case "$(uname -s)" in
   Darwin) source "$DOTFILES_ROOT/platform/mac.sh"

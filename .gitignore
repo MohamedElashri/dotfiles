@@ -3,6 +3,30 @@
 
 # Secrets
 .env
+.env.*
+!.env.example
+**/auth.json
+**/auth.db*
+**/oauth_creds.json
+**/hosts.yml
+**/credentials
+**/id_rsa
+**/id_ed25519
+**/id_ecdsa
+**/id_dsa
+*.pem
+*.key
+*.p12
+*.pfx
+*.kdbx
+*.sqlite
+*.sqlite3
+# OpenCode's local MCP file contains a token; only opencode.jsonc is portable.
+config/mac/cli/opencode/config.json
+config/mac/cli/opencode/opencode.jsonc
+config/mac/cli/dnscrypt-proxy/dnscrypt-proxy.toml
+config/mac/ssh/config.local
+.ssh/config.local
 
 # Editor
 .vscode/

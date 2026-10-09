@@ -1,0 +1,34 @@
+{
+  "colorscheme": "dracula-tc",
+  "ruler": true,
+  "relativeruler": true,
+  "diffgutter": true,
+  "tabstospaces": true,
+  "tabsize": 4,
+  "indentchar": " ",
+  "savecursor": true,
+  "backup": true,
+  "backupsuffix": "~",
+  "clipboard": "external",
+  "mouse": true,
+  "scrollbar": true,
+  "colorcolumn": 100,
+  "softwrap": false,
+
+  "statusformatl": "$(filename) $(modified) ($(line),$(col))",
+  "statusformatr": "ft:$(opt:filetype) | $(opt:fileformat) | $(opt:encoding)",
+
+  "filemanager-openonstart": false,
+  "filemanager-showdotfiles": true,
+  "filemanager-showignored": false,
+
+  "ft:markdown": { "softwrap": true, "colorcolumn": 0 },
+  "ft:text":     { "softwrap": true, "colorcolumn": 0 },
+  "ft:yaml":     { "tabsize": 2 },
+  "ft:json":     { "tabsize": 2 },
+  "ft:javascript": { "tabsize": 2 },
+  "ft:typescript": { "tabsize": 2 },
+  "ft:python":   { "tabsize": 4, "indentchar": " " },
+  "ft:cpp":      { "tabsize": 4 },
+  "ft:cuda":     { "tabsize": 4 }
+}

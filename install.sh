@@ -18,12 +18,14 @@ if [ -r "$HOME/.config/dotfiles/profile" ]; then
 fi
 OS=$(uname -s)
 DRY_RUN=0
+STATUS=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal or hep' >&2; exit 2; }; PROFILE=$2; shift ;;
     --platform) [ "$#" -ge 2 ] || exit 2; case "$2" in linux) OS=Linux ;; mac) OS=Darwin ;; *) echo 'Use --platform linux|mac and --profile hep for clusters' >&2; exit 2 ;; esac; shift ;;
     --dry-run|-n) DRY_RUN=1 ;;
-    --help|-h) echo 'Usage: ./install.sh [--profile personal|hep] [--platform linux|mac] [--dry-run]'; exit 0 ;;
+    --status) STATUS=1 ;;
+    --help|-h) echo 'Usage: ./install.sh [--profile personal|hep] [--platform linux|mac] [--dry-run|--status]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -36,8 +38,11 @@ sources=(); targets=()
 add() { sources+=("$ROOT/$1"); targets+=("$HOME/$2"); }
 add "setup/profiles/$PROFILE" .config/dotfiles/profile
 add bash/.bashrc .bashrc
-# Do not replace site login files. Supply .profile only for a fresh home.
-if [ ! -e "$HOME/.profile" ] && [ ! -L "$HOME/.profile" ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
+# Keep site Bash login files. The personal Mac profile preserves its Q hooks
+# and loads the linked Bash rc for interactive login shells.
+if [ "$PROFILE" = personal ] && [ "$OS" = Darwin ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
+  add config/mac/shell/.profile .profile
+elif [ ! -e "$HOME/.profile" ] && [ ! -L "$HOME/.profile" ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
   add shell/.profile .profile
 elif [ -L "$HOME/.profile" ]; then
   case "$(readlink "$HOME/.profile")" in
@@ -52,25 +57,57 @@ if [ "$PROFILE" = personal ]; then
   add config/git/.gitconfig .gitconfig
   add config/git/.stCommitMsg .stCommitMsg
   add config/git/ignore .config/dotfiles/git-ignore
-  add config/ssh/config .ssh/config
-  add config/terminals/waveterm/config .waveterm/config
   if [ "$OS" = Darwin ]; then
+    add config/mac/ssh/config .ssh/config
+    # Link the files separately so application state can stay in this directory.
+    for name in settings.json termthemes.json widgets.json; do
+      add "config/mac/waveterm/config/$name" ".waveterm/config/$name"
+    done
     add config/git/mac.gitconfig .config/dotfiles/git-platform
     add config/mac/zsh/.p10k.zsh .p10k.zsh
     add config/mac/cli/atuin/config.toml .config/atuin/config.toml
+    add config/mac/cli/asciinema/defaults.toml .config/asciinema/defaults.toml
     add config/mac/cli/bat/config .config/bat/config
+    add config/mac/cli/btop/btop.conf .config/btop/btop.conf
+    add config/mac/cli/claude/settings.json .claude/settings.json
     add config/mac/cli/helix/config.toml .config/helix/config.toml
+    add config/mac/cli/gh/config.yml .config/gh/config.yml
+    add config/mac/cli/micro/settings.json .config/micro/settings.json
+    add config/mac/cli/micro/bindings.json .config/micro/bindings.json
+    add config/mac/cli/nano/nanorc .nanorc
+    add config/mac/cli/vicinae/settings.json .config/vicinae/settings.json
+    add config/mac/cli/hyper/hyper.js/.hyper.js .hyper.js
     add config/mac/tmux/.tmux.conf .tmux.conf
+    add config/mac/karabiner/karabiner.json .config/karabiner/karabiner.json
     add config/mac/rio-terminal .config/rio
-    add config/mac/vscode/settings.json 'Library/Application Support/Code/User/settings.json'
+    add config/mac/warp/settings.toml .warp/settings.toml
     add config/mac/zed/settings.json .config/zed/settings.json
   else
+    add config/ssh/config .ssh/config
+    add config/terminals/waveterm/config .waveterm/config
     add config/git/linux.gitconfig .config/dotfiles/git-platform
     add config/terminals/ghostty .config/ghostty
   fi
 fi
 # Validate all sources before making any changes.
 for src in "${sources[@]}"; do [ -e "$src" ] || { echo "Missing source: $src" >&2; exit 1; }; done
+if [ "$STATUS" = 1 ]; then
+  drift=0
+  for ((i=0; i<${#sources[@]}; i++)); do
+    src=${sources[i]}; dest=${targets[i]}
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
+      continue
+    fi
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+      printf 'Detached: %s (expected %s)\n' "$dest" "$src"
+    else
+      printf 'Missing: %s (expected %s)\n' "$dest" "$src"
+    fi
+    drift=1
+  done
+  [ "$drift" = 0 ] && echo 'All managed files are linked.'
+  exit "$drift"
+fi
 printf 'OS: %s | profile: %s | repository: %s\n' "$OS" "$PROFILE" "$ROOT"
 run() {
   if [ "$DRY_RUN" = 1 ]; then printf 'Would run:'; printf ' %q' "$@"; printf '\n'; else "$@"; fi
@@ -78,7 +115,7 @@ run() {
 # Keep an unmanaged pre-existing Bash rc as a site hook, including /etc/bashrc
 # initialization and module definitions. Existing repo links need no hook.
 site="$HOME/.config/dotfiles/site.bash"
-if [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$ROOT/bash/.bashrc"; then
+if [ "$OS" != Darwin ] && [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$ROOT/bash/.bashrc"; then
   old_target=$(readlink "$HOME/.bashrc" || true)
   case "$old_target" in
     "$ROOT/"*) ;;

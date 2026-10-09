@@ -1,0 +1,88 @@
+// This configuration is merged with the default vicinae configuration file, which you can obtain by running the `vicinae config default` command.
+// Every item defined in this file takes precedence over the values defined in the default config or any other imported file.
+//
+// You can make manual edits to this file, however you should keep in mind that this file may be written to by vicinae when a configuration change is made through the GUI.
+// When that happens, any custom comments or formatting will be lost.
+//
+// If you want to maintain a configuration file with your own comments and formatting, you should create a separate file and add it to the 'imports' array.
+//
+// Learn more about configuration at https://docs.vicinae.com/config
+
+{
+   "$schema": "https://vicinae.com/schemas/config.json",
+   "close_on_focus_loss": true,
+   "pop_to_root_on_close": true,
+   "escape_key_behavior": "",
+   "global_shortcuts": {
+      "toggle": "control+SPACE"
+   },
+   "theme": {
+      "light": {
+         "name": "evergarden-winter"
+      }
+   },
+   "telemetry": {
+      "system_info": false
+   },
+   "providers": {
+      "apple-shortcuts": {
+         "enabled": false
+      },
+      "browser-extension": {
+         "enabled": false
+      },
+      "core": {
+         "entrypoints": {
+            "sponsor": {
+               "enabled": false
+            }
+         }
+      },
+      "files": {
+         "enabled": false
+      },
+      "macos-settings": {
+         "entrypoints": {
+            "com.apple.CD-DVD-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.ClassKit-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Coverage-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Family-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.FollowUpSettings.FollowUpSettingsExtension": {
+               "enabled": false
+            },
+            "com.apple.Game-Center-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Game-Controller-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Home.PrivacySettingsExtension": {
+               "enabled": false
+            },
+            "com.apple.Internet-Accounts-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Siri-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Spotlight-Settings.extension": {
+               "enabled": false
+            },
+            "com.apple.Transfer-Reset-Settings.extension": {
+               "enabled": false
+            }
+         }
+      },
+      "scripts": {
+         "enabled": false
+      }
+   }
+}

@@ -1,0 +1,137 @@
+{
+  "btop": {
+    "icon": "computer",
+    "color": "#c4958b",
+    "label": "btop",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'for path in /opt/homebrew/bin/btop /usr/local/bin/btop $(which btop 2>/dev/null); do if [ -x \"$path\" ]; then exec \"$path\"; fi; done; echo \"btop not found. Install with: brew install btop\"'"
+      }
+    }
+  },
+  "dns-mdns": {
+    "icon": "network-wired",
+    "color": "#2ecc71",
+    "label": "dns/mdns",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'echo \"=== macOS DNS/mDNS Info ===\"; echo; echo \"• Bonjour hostname:\"; scutil --get LocalHostName | sed \"s/$/.local/\"; echo; echo \"• Resolving self:\"; dscacheutil -q host -a name $(scutil --get LocalHostName).local | head -n 3; echo; echo \"• DNS servers:\"; scutil --dns | sed -n \"/resolver #1/,/^$/p\" | grep \"nameserver\" | sed -E \"s/.*: (.*)/  - \\1/\" | head -n 5; echo; echo \"Tip: Use \\\"dns-sd -B _http._tcp\\\" in Terminal for live mDNS.\"'"
+      }
+    }
+  },
+  "docker-stats": {
+    "icon": "docker",
+    "color": "#4aa3df",
+    "label": "docker",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'if command -v docker >/dev/null 2>&1; then watch -n3 \"docker stats --no-stream --format \\\"table {{.Name}}\\\\t{{.CPUPerc}}\\\\t{{.MemUsage}}\\\\t{{.NetIO}}\\\\t{{.BlockIO}}\\\"\"; else echo \"Docker not found. Is Docker Desktop running?\"; fi'"
+      }
+    }
+  },
+  "disk": {
+    "icon": "hard-drive",
+    "color": "#e0b070",
+    "label": "disk",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'watch -n5 \"df -h\"'"
+      }
+    }
+  },
+  "network": {
+    "icon": "wifi",
+    "color": "#4db6ac",
+    "label": "network",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'if command -v netstat >/dev/null 2>&1; then watch -n5 \"netstat -rn | grep -E \\\"^(default|Internet:|Active|Destination)\\\"\"; else echo \"netstat not available.\"; fi'"
+      }
+    }
+  },
+  "tailscale": {
+    "icon": "tower-broadcast",
+    "color": "#4db6ac",
+    "label": "tailscale",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'if command -v tailscale >/dev/null 2>&1; then watch -n5 \"tailscale status\"; else echo \"tailscale not found. Install with: brew install tailscale\"; fi'"
+      }
+    }
+  },
+  "ping": {
+    "icon": "signal",
+    "color": "#d18be0",
+    "label": "ping",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'watch -n2 \"ping -c 1 1.1.1.1 | grep time=\"'"
+      }
+    }
+  },
+  "weather": {
+    "icon": "umbrella",
+    "color": "#7fb3d5",
+    "label": "weather",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'if command -v curl >/dev/null 2>&1; then watch -n1800 \"curl -s wttr.in/Geneva?format=3\"; else echo \"curl not found. Install with: brew install curl\"; fi'"
+      }
+    }
+  },
+  "updates": {
+    "icon": "refresh",
+    "color": "#5dade2",
+    "label": "updates",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'if command -v brew >/dev/null 2>&1; then brew outdated; else echo \"Homebrew not found.\"; fi'"
+      }
+    }
+  },
+  "ports": {
+    "icon": "shield",
+    "color": "#9b59b6",
+    "label": "ports",
+    "blockdef": {
+      "meta": {
+        "view": "term",
+        "controller": "cmd",
+        "cmd": "/usr/bin/env zsh -lic 'if ! command -v lsof >/dev/null 2>&1; then echo \"lsof not found. Usually preinstalled on macOS.\"; exit 1; fi; while true; do clear; echo \"Listening ports (refresh every 5s):\\n\"; lsof -i -P -n 2>/dev/null | awk \"BEGIN { printf \\\"%-25s %s\\\\n\\\", \\\"Local-Address:Port\\\", \\\"Program\\\" } /LISTEN/ { split(\\$9, a, \\\":\\\"); port = a[length(a)]; gsub(/\\\\[.*\\\\]/, \\\"\\\", \\$9); printf \\\"%-25s %s\\\\n\\\", \\$9, \\$1 }\"; sleep 5; done'"
+      }
+    }
+  },
+"ssh-config": {
+  "icon": "key",
+  "color": "#3498db",
+  "label": "ssh",
+  "blockdef": {
+    "meta": {
+      "view": "term",
+      "controller": "cmd",
+      "cmd": "/usr/bin/env zsh -lic 'config=\"$HOME/.ssh/config\"; if [[ ! -f \"$config\" ]]; then echo \"No ~/.ssh/config found.\"; exit 0; fi; echo \"SSH Configured Hosts:\"; echo; awk \"/^[ ]*Host[ ]+[^*?]/ { host=\\$2 } /^[ ]*HostName[ ]+/ { if (host != \\\"\\\") { print host \\\" → \\\" \\$2; host=\\\"\\\" } }\" \"$config\" | sort -u || echo \"No valid entries found.\"'"
+    }
+  }
+}
+}
+
+
+

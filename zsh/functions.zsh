@@ -117,7 +117,7 @@ mkd() {
 
 get_size() {
   local target="$1"
-  local size size_gb size_mb
+  local size size_gb size_mb size_kb
 
   if [[ ! -e "$target" ]]; then
     echo "Error: File or folder not found!"
@@ -125,12 +125,21 @@ get_size() {
   fi
 
   if [[ "$(uname -s)" == Darwin ]]; then
-    # BSD du reports disk usage in KiB; GNU du supports apparent byte size.
-    size=$(du -sk "$target" | awk '{print $1 * 1024}')
+    # BSD stat reports apparent size for files; du handles directories.
+    if [[ -f "$target" ]]; then
+      size=$(stat -f %z "$target")
+    else
+      size=$(command du -sk "$target" | awk '{print $1 * 1024}')
+    fi
   else
-    size=$(du -sb "$target" | awk '{print $1}')
+    size=$(command du -sb "$target" | awk '{print $1}')
   fi
-  if [[ $size -ge 1073741824 ]]; then
+  if [[ $size -lt 1024 ]]; then
+    echo "Size of '$target': $size B"
+  elif [[ $size -lt 1048576 ]]; then
+    size_kb=$(awk "BEGIN {printf \"%.2f\", $size / 1024}")
+    echo "Size of '$target': $size_kb KB"
+  elif [[ $size -ge 1073741824 ]]; then
     size_gb=$(bc <<< "scale=2; $size / 1073741824")
     echo "Size of '$target': $size_gb GB"
   else
@@ -480,8 +489,16 @@ busywork() {
 alias abusy="busywork"
 
 nvims() {
-  local items config
-  items=("default" "kickstart" "LazyVim" "NvChad" "AstroNvim")
+  local items config candidate config_root
+  config_root="${XDG_CONFIG_HOME:-$HOME/.config}"
+  items=("default")
+  for candidate in kickstart LazyVim NvChad AstroNvim; do
+    [[ -d "$config_root/$candidate" ]] && items+=("$candidate")
+  done
+  if (( ${#items[@]} == 1 )) || ! command -v fzf >/dev/null 2>&1; then
+    nvim "$@"
+    return
+  fi
   config=$(printf "%s\n" "${items[@]}" | fzf --prompt=" Neovim Config  " --height=50% --layout=reverse --border --exit-0)
   if [[ -z $config ]]; then
     echo "Nothing selected"

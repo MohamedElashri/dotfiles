@@ -77,5 +77,7 @@ for _texlive_bin in /usr/local/texlive/*/bin/*(/N); do
 done
 unset _texlive_bin _texlive_root
 
+[[ "$(uname -s)" == Darwin ]] && source "$DOTFILES_ROOT/config/mac/zsh/environment.zsh"
+
 [[ -r "$HOME/.config/dotfiles/local.env.zsh" ]] && source "$HOME/.config/dotfiles/local.env.zsh"
 return 0
