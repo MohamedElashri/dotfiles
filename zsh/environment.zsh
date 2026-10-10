@@ -81,3 +81,5 @@ unset _texlive_bin _texlive_root
 
 [[ -r "$HOME/.config/dotfiles/local.env.zsh" ]] && source "$HOME/.config/dotfiles/local.env.zsh"
 return 0
+
+eval "$(zoxide init zsh)
