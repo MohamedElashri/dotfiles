@@ -199,6 +199,7 @@ class InstallTests(unittest.TestCase):
 
     def test_bash_listing_shortcuts_are_preserved(self):
         self.install()
+        (self.home/'.sudo_as_admin_successful').touch()
         result = self.run_cmd('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic', 'alias ll; alias la')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "alias ll='ls -alF'\nalias la='ls -A'\n")
