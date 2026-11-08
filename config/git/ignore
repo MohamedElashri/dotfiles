@@ -1,3 +1,72 @@
-**/.claude/settings.local.json
+# Global personal excludes; installed on both macOS and Linux.
+# Explicit tool names also match nested projects, files, and symlinks.
+# Already tracked files are unaffected.
+
+# AI assistants: settings, rules, sessions, caches, and worktrees
+.claude
+.claude.json
+.claude.json.*
+.codex
+.agents
+.agent
+.cursor
+.continue
+.gemini
+.opencode
+.aider*
+.cline
+.clinerules
+.roo
+.roorules
+.roomodes
+.windsurf
+.kiro
+.trae
+.junie
+.augment
+.amp
+.crush
+.goose
+.codeium
+.tabnine
+.copilot
+.qodo
+.factory
+.kilocode
+.amazonq
+.openhands
+
+# AI instruction files and standalone settings
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+CLAUDE.local.md
+GEMINI.md
+.cursorrules
+.cursorignore
+.cursorindexingignore
+.windsurfrules
+.geminiignore
+.mcp.json
+opencode.json
+opencode.jsonc
+**/.github/copilot-instructions.md
+**/.github/agents/
+**/.github/instructions/
+**/.github/prompts/
+**/.github/chatmodes/
+**/.github/skills/
+**/.vscode/mcp.json
+
+# OS metadata
 .DS_Store
-._.DS_Store
+._*
+.Spotlight-V100/
+.Trashes/
+Thumbs.db
+Desktop.ini
+
+# Editor swap and backup files
+*.swp
+*.swo
+*~

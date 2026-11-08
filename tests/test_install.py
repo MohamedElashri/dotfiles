@@ -38,6 +38,22 @@ class InstallTests(unittest.TestCase):
             self.install(*args, '--dry-run')
             self.assertEqual([p.name for p in self.home.iterdir()], ['test-bin'])
 
+    def test_recovery_manifest_is_read_only_and_covers_migrations(self):
+        config = self.home/'.config/dotfiles'
+        config.mkdir(parents=True)
+        legacy = config/'environment.local.zsh'
+        legacy.write_text('# keep local configuration\n')
+        result = self.install('--manifest')
+        raw = result.stdout.split('\0')
+        entries = dict(zip(raw[1:-1:2], raw[0:-1:2]))
+        self.assertEqual(entries[str(self.home/'.bashrc')], 'link')
+        self.assertEqual(entries[str(legacy)], 'change')
+        self.assertEqual(entries[str(config/'local.env.zsh')], 'change')
+        self.assertEqual(entries[str(self.home/'.ssh')], 'mode')
+        self.assertEqual(legacy.read_text(), '# keep local configuration\n')
+        self.assertFalse((self.home/'.bashrc').exists())
+        self.assertFalse((config/'local.env.zsh').exists())
+
     def test_backup_and_idempotence(self):
         (self.home/'.zshrc').write_text('# previous settings\n')
         (self.home/'.bashrc').write_text('export SITE_PRESERVED=yes\n')
@@ -85,6 +101,49 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((self.home/'.profile').resolve(), ROOT/'config/mac/shell/.profile')
         result = self.run_cmd('bash', '--noprofile', '-ic', '. "$HOME/.profile"; test "$DOTFILES_ROOT" = "'+str(ROOT)+'" && alias ll >/dev/null')
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_global_git_ignores_on_mac_and_linux(self):
+        repo = self.home/'unrelated repository'
+        repo.mkdir()
+        self.assertEqual(self.run_cmd('git', 'init', '-q', str(repo)).returncode, 0)
+        ignored = [
+            '.claude/settings.json', '.codex/config.toml',
+            'nested/.claude/worktrees/task/file.txt', 'nested/.codex/config.toml',
+            'nested/.cursor/rules/project.mdc', '.gemini/settings.json',
+            '.aider.chat.history.md', '.continue/config.yaml', '.mcp.json',
+            '.agents/skills/review/SKILL.md', '.agent/rules/style.md',
+            'AGENTS.md', 'nested/AGENTS.override.md', 'nested/CLAUDE.md',
+            'CLAUDE.local.md', 'GEMINI.md', 'opencode.jsonc',
+            '.github/copilot-instructions.md', 'nested/.github/agents/review.agent.md',
+            '.github/instructions/python.instructions.md', '.github/prompts/review.prompt.md',
+            '.github/skills/review/SKILL.md', '.github/chatmodes/review.chatmode.md',
+            '.vscode/mcp.json', 'nested/.DS_Store', 'nested/._photo.png',
+            '.Spotlight-V100/index', '.Trashes/entry', 'nested/Thumbs.db',
+            'Desktop.ini', 'nested/settings.swp', 'settings.swo', 'notes.txt~',
+        ]
+        visible = ['README.md', 'AGENTSmith.md', 'settings.json', '.vscode/settings.json',
+                   '.idea/project.xml', '.env.example', 'build/source.c',
+                   '.github/workflows/test.yml']
+        for name in ignored + visible:
+            target = repo/name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('fixture\n')
+        for platform in ('mac', 'linux'):
+            with self.subTest(platform=platform):
+                self.install('--platform', platform)
+                result = self.run_cmd('git', '-C', str(repo), 'ls-files', '--others', '--exclude-standard')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(set(result.stdout.splitlines()), set(visible))
+        # Tracked settings continue to be visible despite global exclusions.
+        result = self.run_cmd('git', '-C', str(repo), 'add', '-f', '.claude/settings.json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.run_cmd('git', '-C', str(repo), 'check-ignore', '.claude/settings.json')
+        self.assertEqual(result.returncode, 1, result.stderr)
+        # The local Git override is loaded last, including core.excludesFile.
+        local = self.home/'.config/dotfiles/local.gitconfig'
+        local.write_text('[core]\n excludesFile = ~/.config/custom-ignore\n')
+        result = self.run_cmd('git', 'config', '--get', 'core.excludesFile')
+        self.assertEqual(result.stdout.strip(), '~/.config/custom-ignore')
 
     def test_status_detects_app_replacing_a_link(self):
         self.install('--platform', 'mac')

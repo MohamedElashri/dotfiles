@@ -19,12 +19,14 @@ fi
 OS=$(uname -s)
 DRY_RUN=0
 STATUS=0
+MANIFEST=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal or hep' >&2; exit 2; }; PROFILE=$2; shift ;;
     --platform) [ "$#" -ge 2 ] || exit 2; case "$2" in linux) OS=Linux ;; mac) OS=Darwin ;; *) echo 'Use --platform linux|mac and --profile hep for clusters' >&2; exit 2 ;; esac; shift ;;
     --dry-run|-n) DRY_RUN=1 ;;
     --status) STATUS=1 ;;
+    --manifest) MANIFEST=1 ;;
     --help|-h) echo 'Usage: ./install.sh [--profile personal|hep] [--platform linux|mac] [--dry-run|--status]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -91,6 +93,44 @@ if [ "$PROFILE" = personal ]; then
 fi
 # Validate all sources before making any changes.
 for src in "${sources[@]}"; do [ -e "$src" ] || { echo "Missing source: $src" >&2; exit 1; }; done
+# Describe every home path this installer can change, without changing it.
+# NUL-separated kind/path pairs are consumed by the update recovery journal.
+if [ "$MANIFEST" = 1 ]; then
+  for dest in "${targets[@]}"; do printf 'link\0%s\0' "$dest"; done
+  if [ "$PROFILE" = personal ]; then
+    for group in env zsh; do
+      if [ "$group" = env ]; then
+        old_names=(.config/dotfiles/environment.local.zsh .environment.local.zsh)
+        current_name=.config/dotfiles/local.env.zsh
+      else
+        old_names=(.config/dotfiles/zshrc.local.zsh .dotfiles.local.zsh)
+        current_name=.config/dotfiles/local.zsh
+      fi
+      found=0
+      for name in "${old_names[@]}"; do [ ! -f "$HOME/$name" ] || found=1; done
+      if [ "$found" = 1 ]; then
+        for name in "${old_names[@]}" "$current_name"; do printf 'change\0%s\0' "$HOME/$name"; done
+      fi
+    done
+    for name in aliases functions environment config plugins tricks m_nvim; do
+      dest="$HOME/$name.zsh"
+      if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name.zsh" ]; then
+        printf 'change\0%s\0' "$dest"
+      fi
+    done
+    for name in core aliases functions integrations; do
+      dest="$HOME/.config/dotfiles/zsh/$name"
+      if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name" ]; then
+        printf 'change\0%s\0' "$dest"
+      fi
+    done
+    if [ -L "$HOME/cli" ] && [ "$(readlink "$HOME/cli")" = "$ROOT/cli" ]; then
+      printf 'change\0%s\0' "$HOME/cli"
+    fi
+    printf 'mode\0%s\0' "$HOME/.ssh"
+  fi
+  exit 0
+fi
 if [ "$STATUS" = 1 ]; then
   drift=0
   for ((i=0; i<${#sources[@]}; i++)); do

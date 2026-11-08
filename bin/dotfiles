@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Manage this checkout from Bash or Zsh on macOS and Linux (including Bash 3.2).
+set -euo pipefail
+
+script=${BASH_SOURCE[0]}
+while [ -L "$script" ]; do
+  directory=$(cd -P "$(dirname "$script")" && pwd)
+  script=$(readlink "$script")
+  case "$script" in /*) ;; *) script=$directory/$script ;; esac
+done
+ROOT=$(cd -P "$(dirname "$script")/.." && pwd)
+
+usage() {
+  cat <<'EOF'
+Usage: dotfiles <command>
+
+  update [--check]       Fetch and validate upstream, then apply with recovery.
+                         --check previews without changing live configuration.
+  rollback               Undo the last update if no subsequent edits conflict.
+  install [options]      Link configuration (see install --help).
+  status [options]       Check managed links without changing them.
+  help                   Show this help.
+
+On another machine, run update after committing and pushing your changes.
+The installer detects macOS/Linux and remembers the installed profile.
+EOF
+}
+
+command=${1:-help}
+[ "$#" -eq 0 ] || shift
+case "$command" in
+  help|--help|-h) usage ;;
+  install) exec bash "$ROOT/install.sh" "$@" ;;
+  status) exec bash "$ROOT/install.sh" "$@" --status ;;
+  update|rollback)
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo 'Updates and rollback require Python 3. Installation only requires Bash.' >&2
+      exit 1
+    fi
+    exec python3 "$ROOT/scripts/update.py" "$command" "$@"
+    ;;
+  *) printf 'Unknown command: %s\n' "$command" >&2; usage >&2; exit 2 ;;
+esac

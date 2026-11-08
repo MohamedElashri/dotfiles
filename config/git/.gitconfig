@@ -196,6 +196,3 @@
 [include]
     path = ~/.config/dotfiles/git-platform
     path = ~/.config/dotfiles/local.gitconfig
-
-[core]
-    excludesFile = ~/.config/dotfiles/git-ignore
