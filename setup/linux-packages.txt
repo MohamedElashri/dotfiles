@@ -1,5 +1,9 @@
-# Optional workstation tools; install with your distribution package manager.
-curl
+# Essential Debian/Ubuntu packages for minimal + update/rollback.
+# Translate names for other distributions; this list is not run automatically.
+bash
+ca-certificates
 git
-rsync
-zsh
+less
+openssh-client
+python3
+vim-tiny

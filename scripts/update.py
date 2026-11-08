@@ -277,7 +277,7 @@ def update(state_root, check):
     if not profile_path.exists():
         raise UpdateError('Install dotfiles first with ./install.sh before updating.')
     profile = profile_path.read_text().strip()
-    if profile not in ('personal', 'hep'):
+    if profile not in ('personal', 'minimal', 'hep'):
         raise UpdateError('Invalid installed profile.')
     # Detect detached AND missing existing links before fetching or applying anything.
     installer(ROOT, '--status', capture=True)

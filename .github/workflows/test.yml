@@ -1,0 +1,37 @@
+name: Dotfiles checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    steps:
+      - name: Install checkout prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install essential packages only
+        run: |
+          awk 'NF && $1 !~ /^#/ {print $0}' setup/linux-packages.txt | xargs apt-get install -y --no-install-recommends
+      - name: Bootstrap a minimal home without desktop tools
+        shell: bash
+        run: |
+          task_home=$(mktemp -d)
+          env HOME="$task_home" bash install.sh --profile minimal
+          env HOME="$task_home" bash bin/dotfiles doctor
+      - name: Install test tools
+        run: apt-get install -y --no-install-recommends zsh shellcheck
+      - name: Shell checks
+        run: shellcheck bin/dotfiles install.sh scripts/doctor.sh hep/install.sh hep/.bashrc hep/.profile hep/env.sh
+      - name: Integration tests
+        run: python3 -m unittest discover -s tests -v

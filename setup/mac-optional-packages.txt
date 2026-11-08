@@ -1,0 +1,17 @@
+# Optional Homebrew CLI tools; choose only what you use.
+atuin
+bat
+btop
+fd
+fzf
+gh
+git-delta
+git-lfs
+helix
+micro
+neovim
+ripgrep
+rsync
+tmux
+zoxide
+zsh

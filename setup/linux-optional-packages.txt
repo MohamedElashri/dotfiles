@@ -1,0 +1,10 @@
+# Optional Debian/Ubuntu CLI packages; choose only what you use.
+bat
+curl
+fd-find
+fzf
+git-lfs
+ripgrep
+rsync
+tmux
+zsh

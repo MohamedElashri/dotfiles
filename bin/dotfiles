@@ -19,6 +19,7 @@ Usage: dotfiles <command>
   rollback               Undo the last update if no subsequent edits conflict.
   install [options]      Link configuration (see install --help).
   status [options]       Check managed links without changing them.
+  doctor [--profile p]   Check links, required tools, and Git/auth setup offline.
   help                   Show this help.
 
 On another machine, run update after committing and pushing your changes.
@@ -32,6 +33,7 @@ case "$command" in
   help|--help|-h) usage ;;
   install) exec bash "$ROOT/install.sh" "$@" ;;
   status) exec bash "$ROOT/install.sh" "$@" --status ;;
+  doctor) exec bash "$ROOT/scripts/doctor.sh" "$@" ;;
   update|rollback)
     if ! command -v python3 >/dev/null 2>&1; then
       echo 'Updates and rollback require Python 3. Installation only requires Bash.' >&2

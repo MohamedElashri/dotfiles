@@ -34,7 +34,7 @@ class InstallTests(unittest.TestCase):
         return result
 
     def test_dry_run_all_profiles(self):
-        for args in [(), ('--platform', 'mac'), ('--profile', 'hep')]:
+        for args in [(), ('--platform', 'mac'), ('--profile', 'minimal'), ('--profile', 'minimal', '--platform', 'mac'), ('--profile', 'hep')]:
             self.install(*args, '--dry-run')
             self.assertEqual([p.name for p in self.home.iterdir()], ['test-bin'])
 
@@ -272,7 +272,7 @@ class InstallTests(unittest.TestCase):
         self.assertFalse((self.home/'.zshrc').exists())
 
     def test_reinstall_after_checkout_moves(self):
-        for profile, platform in [('personal', 'linux'), ('hep', 'linux'), ('personal', 'mac')]:
+        for profile, platform in [('personal', 'linux'), ('hep', 'linux'), ('personal', 'mac'), ('minimal', 'linux'), ('minimal', 'mac')]:
             with self.subTest(profile=profile, platform=platform):
                 original = self.home/f'original checkout {profile} {platform}'
                 moved = self.home/f'moved checkout {profile} {platform}'
@@ -286,9 +286,11 @@ class InstallTests(unittest.TestCase):
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), profile)
-                expected_profile = moved/('config/mac/shell/.profile' if platform == 'mac' else 'shell/.profile')
+                login = 'hep/.profile' if profile == 'hep' else ('config/mac/shell/.profile' if platform == 'mac' and profile == 'personal' else 'shell/.profile')
+                expected_profile = moved/login
                 self.assertEqual((target_home/'.profile').resolve(), expected_profile.resolve())
-                self.assertEqual((target_home/'.bashrc').resolve(), (moved/'bash/.bashrc').resolve())
+                bashrc = 'hep/.bashrc' if profile == 'hep' else 'bash/.bashrc'
+                self.assertEqual((target_home/'.bashrc').resolve(), (moved/bashrc).resolve())
                 self.assertFalse((target_home/'.config/dotfiles/site.bash').exists())
                 result = self.run_cmd('sh', '-c', '. "$HOME/.profile"; command -v terminal_quran.sh', env=env)
                 self.assertEqual(Path(result.stdout.strip()).resolve(), (moved/'bin/terminal_quran.sh').resolve())

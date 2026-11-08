@@ -8,9 +8,13 @@ PREVIOUS_ROOT=$ROOT
 # The installed profile link records the old checkout even after it has moved.
 profile_link=$(readlink "$HOME/.config/dotfiles/profile" 2>/dev/null || true)
 case "$profile_link" in
-  /*/setup/profiles/personal|/*/setup/profiles/hep)
+  /*/setup/profiles/personal|/*/setup/profiles/minimal|/*/setup/profiles/hep)
     PREVIOUS_ROOT=${profile_link%/setup/profiles/*}
     PROFILE=${profile_link##*/}
+    ;;
+  /*/hep/profile)
+    PREVIOUS_ROOT=${profile_link%/hep/profile}
+    PROFILE=hep
     ;;
 esac
 if [ -r "$HOME/.config/dotfiles/profile" ]; then
@@ -22,19 +26,26 @@ STATUS=0
 MANIFEST=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal or hep' >&2; exit 2; }; PROFILE=$2; shift ;;
+    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal, minimal, or hep' >&2; exit 2; }; PROFILE=$2; shift ;;
     --platform) [ "$#" -ge 2 ] || exit 2; case "$2" in linux) OS=Linux ;; mac) OS=Darwin ;; *) echo 'Use --platform linux|mac and --profile hep for clusters' >&2; exit 2 ;; esac; shift ;;
     --dry-run|-n) DRY_RUN=1 ;;
     --status) STATUS=1 ;;
     --manifest) MANIFEST=1 ;;
-    --help|-h) echo 'Usage: ./install.sh [--profile personal|hep] [--platform linux|mac] [--dry-run|--status]'; exit 0 ;;
+    --help|-h) echo 'Usage: ./install.sh [--profile personal|minimal|hep] [--platform linux|mac] [--dry-run|--status]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
-case "$PROFILE" in personal|hep) ;; *) echo 'Invalid profile' >&2; exit 2 ;; esac
+case "$PROFILE" in personal|minimal|hep) ;; *) echo 'Invalid profile' >&2; exit 2 ;; esac
 case "$OS" in Linux|Darwin) ;; *) echo "Unsupported OS: $OS" >&2; exit 2 ;; esac
 [ "$PROFILE" != hep ] || [ "$OS" = Linux ] || { echo 'HEP profile requires Linux' >&2; exit 2; }
+if [ "$PROFILE" = hep ]; then
+  hep_args=(--platform linux)
+  [ "$DRY_RUN" = 0 ] || hep_args+=(--dry-run)
+  [ "$STATUS" = 0 ] || hep_args+=(--status)
+  [ "$MANIFEST" = 0 ] || hep_args+=(--manifest)
+  exec bash "$ROOT/hep/install.sh" "${hep_args[@]}"
+fi
 BACKUP="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)-$$"
 sources=(); targets=()
 add() { sources+=("$ROOT/$1"); targets+=("$HOME/$2"); }
@@ -51,6 +62,10 @@ elif [ -L "$HOME/.profile" ]; then
     "$ROOT/sh/.profile"|"$ROOT/shell/.profile"|"$PREVIOUS_ROOT/sh/.profile"|"$PREVIOUS_ROOT/shell/.profile")
       add shell/.profile .profile ;;
   esac
+fi
+if [ "$PROFILE" = minimal ]; then
+  add config/git/minimal.gitconfig .gitconfig
+  add config/git/ignore .config/dotfiles/git-ignore
 fi
 if [ "$PROFILE" = personal ]; then
   add zsh/.zshenv .zshenv

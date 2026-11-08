@@ -1,0 +1,14 @@
+# Copy to ~/.config/dotfiles/local.gitconfig; loaded last in personal/minimal.
+# Keep machine-specific editor, authentication, and signing choices here.
+[user]
+    name = MohamedElashri
+    email = git@elashri.com
+[core]
+    editor = vi
+# To enable SSH signing after setting up a key on this machine:
+# [gpg]
+#     format = ssh
+# [user]
+#     signingkey = ~/.ssh/id_ed25519.pub
+# [commit]
+#     gpgsign = true

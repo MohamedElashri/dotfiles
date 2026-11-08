@@ -6,6 +6,6 @@ case "$_dotfiles_host" in
   *) _dotfiles_host= ;;
 esac
 if [ -n "$_dotfiles_host" ]; then
-  . "$DOTFILES_ROOT/hep/$_dotfiles_host.bash"
+  . "${HEP_ROOT:-$DOTFILES_ROOT/hep}/$_dotfiles_host.bash"
 fi
 unset _dotfiles_host

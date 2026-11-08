@@ -401,13 +401,19 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), before)
 
     def test_real_installer_update_and_rollback(self):
+        self.real_installer_update_and_rollback('personal')
+
+    def test_real_minimal_installer_update_and_rollback(self):
+        self.real_installer_update_and_rollback('minimal')
+
+    def real_installer_update_and_rollback(self, profile):
         # Use the real config tree and installer, with disposable Git/home paths.
         shutil.copytree(ROOT, self.source, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('.git', 'fonts', '__pycache__'))
         self.commit(self.source, 'Use complete configuration')
         self.git(self.source, 'push', '-q')
         self.git(self.checkout, 'pull', '--ff-only')
-        result = subprocess.run(['bash', str(self.checkout / 'install.sh')],
+        result = subprocess.run(['bash', str(self.checkout / 'install.sh'), '--profile', profile],
                                 env=self.env, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         before = self.git(self.checkout, 'rev-parse', 'HEAD')
