@@ -12,4 +12,8 @@ if [ -t 0 ]; then
     fi
 fi
 
+if command -v zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init bash)"
+fi
+
 return 0

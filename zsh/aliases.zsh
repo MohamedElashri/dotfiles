@@ -17,6 +17,12 @@ alias vi='vim'
 
 alias mount='mount |column -t'
 
+# Modern CLI tool helpers.
+(( $+commands[pygmentize] )) && alias pycat='pygmentize -g'
+(( $+commands[asciinema] )) && alias record='asciinema rec'
+(( $+commands[brew] )) && alias upgrade='brew upgrade'
+(( $+commands[gs] )) && alias mergepdf='gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=_merged.pdf'
+
 # GitHub CLI helpers.
 
 alias copilot='gh copilot'

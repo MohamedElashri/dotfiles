@@ -57,7 +57,7 @@ fi
 
 [[ "$(uname -s)" == Darwin ]] && source "$DOTFILES_ROOT/config/mac/zsh/highlighting.zsh"
 
-if [[ "$(uname -s)" == Darwin ]] && command -v zoxide >/dev/null 2>&1; then
+if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh)"
 fi
 
