@@ -255,6 +255,15 @@ class InstallTests(unittest.TestCase):
         result = self.run_cmd('zsh', '-ic', 'get_size "$HOME/small file"')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), f"Size of '{small}': 512 B")
+        # Sparse files cover all unit branches without allocating large files.
+        for size, expected in [(2048, '2.00 KB'), (2 * 1024 ** 3, '2.00 GB')]:
+            with self.subTest(size=size):
+                with target.open('wb') as stream:
+                    stream.truncate(size)
+                result = self.run_cmd('zsh', '-ic', 'get_size "$HOME/sparse file"')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn('command not found', result.stderr)
+                self.assertEqual(result.stdout.strip(), f"Size of '{target}': {expected}")
 
     def test_bash_listing_shortcuts_are_preserved(self):
         self.install()

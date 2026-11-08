@@ -155,7 +155,8 @@ class ProfileTests(unittest.TestCase):
     def test_hep_install_without_git_python_or_zsh(self):
         standalone = self.base / 'hep-only'
         shutil.copytree(ROOT / 'hep', standalone)
-        for tool in ('bash', 'dirname', 'readlink', 'date', 'mkdir', 'ln', 'mv', 'cp', 'cmp', 'dircolors'):
+        # Ubuntu's system Bash rc calls groups before the user's rc loads.
+        for tool in ('bash', 'dirname', 'readlink', 'date', 'mkdir', 'ln', 'mv', 'cp', 'cmp', 'dircolors', 'groups'):
             executable = shutil.which(tool, path='/usr/bin:/bin')
             if executable:
                 (self.fake / tool).symlink_to(executable)
