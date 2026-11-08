@@ -175,7 +175,8 @@ def restore_home(directory, state):
 
 
 def export_candidate(commit, destination):
-    # Extract regular Git files/directories only, never follow archive symlinks.
+    # Write files first so archive symlinks can never redirect extraction.
+    links = []
     with tempfile.TemporaryFile() as stream:
         run(['git', '-C', ROOT, 'archive', '--format=tar', commit], stdout=stream)
         stream.seek(0)
@@ -192,8 +193,20 @@ def export_candidate(commit, destination):
                     with archive.extractfile(member) as source, target.open('wb') as output:
                         shutil.copyfileobj(source, output)
                     target.chmod(member.mode & 0o777)
+                elif member.issym() and not Path(member.linkname).is_absolute():
+                    links.append((target, member.linkname))
                 else:
-                    raise UpdateError('Incoming source symlinks/submodules need manual review.')
+                    raise UpdateError('Incoming source contains an unsupported or absolute link.')
+    for path, link_target in links:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(link_target)
+    for path, _ in links:
+        try:
+            resolved = path.resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise UpdateError('Incoming source contains a broken or cyclic link: ' + str(path)) from None
+        if destination.resolve() not in resolved.parents:
+            raise UpdateError('Incoming source link escapes the temporary checkout: ' + str(path))
 
 
 def validate(candidate, profile, scratch):

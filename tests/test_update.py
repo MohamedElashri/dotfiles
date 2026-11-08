@@ -190,6 +190,33 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.home / 'install-ran').read_text(), 'updated\n')
 
+    def test_incoming_internal_symlink_is_supported(self):
+        (self.source / 'install').symlink_to('install.sh')
+        (self.source / 'install-alias').symlink_to('install')
+        self.push_installer()
+        result = self.update()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.checkout / 'install').readlink(), Path('install.sh'))
+
+    def test_incoming_external_symlink_stops_before_live_changes(self):
+        (self.source / 'external').symlink_to('../../outside')
+        self.push_installer()
+        before = self.git(self.checkout, 'rev-parse', 'HEAD')
+        self.assert_not_installed(self.update())
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), before)
+
+    def test_incoming_absolute_or_cyclic_symlink_stops_before_live_changes(self):
+        for target in ('/etc/passwd', 'unsafe'):
+            with self.subTest(target=target):
+                path = self.source / 'unsafe'
+                if path.is_symlink():
+                    path.unlink()
+                path.symlink_to(target)
+                self.push_installer()
+                before = self.git(self.checkout, 'rev-parse', 'HEAD')
+                self.assert_not_installed(self.update())
+                self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), before)
+
     def test_invalid_update_options_do_not_pull_or_install(self):
         self.publish()
         before = self.git(self.checkout, 'rev-parse', 'HEAD')
