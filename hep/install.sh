@@ -11,7 +11,9 @@ while [ "$#" -gt 0 ]; do
     --status) STATUS=1 ;;
     --manifest) MANIFEST=1 ;;
     --platform)
-      [ "$#" -ge 2 ] && [ "$2" = linux ] || { echo 'HEP requires Linux' >&2; exit 2; }
+      if [ "$#" -lt 2 ] || [ "$2" != linux ]; then
+        echo 'HEP requires Linux' >&2; exit 2
+      fi
       OS=Linux; shift ;;
     --help|-h) echo 'Usage: ./hep/install.sh [--dry-run|--status]'; exit 0 ;;
     *) echo "Unknown HEP option: $1" >&2; exit 2 ;;
@@ -51,7 +53,9 @@ if [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$HEP_ROOT/.bashrc"; then
   old=$(readlink "$HOME/.bashrc" || true)
   if [ "$old" != "$previous_hep/.bashrc" ] &&
      { [ -z "$previous_repo" ] || [ "$old" != "$previous_repo/bash/.bashrc" ]; }; then
-    [ ! -e "$site" ] && [ ! -L "$site" ] || { echo "Reconcile unmanaged .bashrc with $site first." >&2; exit 1; }
+    if [ -e "$site" ] || [ -L "$site" ]; then
+      echo "Reconcile unmanaged .bashrc with $site first." >&2; exit 1
+    fi
     preserve_site=1
   fi
 fi
