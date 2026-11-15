@@ -1,0 +1,27 @@
+# Deliberately selected direct dependencies for Linux and macOS Homebrew.
+# Python 3 and Git are needed to run the bootstrap itself.
+bash
+zsh
+git
+python
+curl
+rsync
+asciinema
+gh
+git-delta
+git-lfs
+micro
+neovim
+helix
+bat
+btop
+ripgrep
+fd
+fzf
+jq
+tree
+tmux
+watch
+atuin
+zoxide
+starship

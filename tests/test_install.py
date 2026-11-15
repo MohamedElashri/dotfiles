@@ -19,6 +19,9 @@ class InstallTests(unittest.TestCase):
                         RUN_QURAN_VERSE_ON_STARTUP='false')
         fake = self.home/'test-bin'
         fake.mkdir()
+        # Keep shell auto-discovery from loading this host's Homebrew tools
+        # and starting real history hooks in the disposable test home.
+        self.env['HOMEBREW_PREFIX'] = str(fake)
         uname = fake/'uname'
         uname.write_text('#!/bin/sh\necho Linux\n')
         uname.chmod(0o755)
@@ -33,8 +36,8 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result
 
-    def test_dry_run_all_profiles(self):
-        for args in [(), ('--platform', 'mac'), ('--profile', 'hep')]:
+    def test_dry_run_all_platforms(self):
+        for args in [(), ('--platform', 'mac'), ('--profile', 'personal')]:
             self.install(*args, '--dry-run')
             self.assertEqual([p.name for p in self.home.iterdir()], ['test-bin'])
 
@@ -73,8 +76,8 @@ class InstallTests(unittest.TestCase):
         self.assertFalse((self.home/'Library/Application Support/Code/User/settings.json').exists())
         self.assertEqual((self.home/'.ssh/config').resolve(), ROOT/'config/mac/ssh/config')
         self.assertIn('Include ~/.ssh/config.local', (self.home/'.ssh/config').read_text())
-        self.assertEqual((self.home/'.config/gh/config.yml').resolve(), ROOT/'config/mac/cli/gh/config.yml')
-        self.assertEqual((self.home/'.config/micro/settings.json').resolve(), ROOT/'config/mac/cli/micro/settings.json')
+        self.assertEqual((self.home/'.config/gh/config.yml').resolve(), ROOT/'config/cli/gh/config.yml')
+        self.assertEqual((self.home/'.config/micro/settings.json').resolve(), ROOT/'config/cli/micro/settings.json')
         self.assertEqual((self.home/'.config/karabiner/karabiner.json').resolve(), ROOT/'config/mac/karabiner/karabiner.json')
         self.assertEqual((self.home/'.warp/settings.toml').resolve(), ROOT/'config/mac/warp/settings.toml')
         for p in self.home.rglob('*'):
@@ -85,6 +88,23 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((self.home/'.profile').resolve(), ROOT/'config/mac/shell/.profile')
         result = self.run_cmd('bash', '--noprofile', '-ic', '. "$HOME/.profile"; test "$DOTFILES_ROOT" = "'+str(ROOT)+'" && alias ll >/dev/null')
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_mac_preserves_an_unmanaged_profile(self):
+        profile = self.home/'.profile'
+        profile.write_text('export DEVICE_LOGIN_SETTING=preserved\n')
+        self.install('--platform', 'mac')
+        self.install('--platform', 'mac')
+        self.assertFalse(profile.is_symlink())
+        self.assertEqual(profile.read_text(), 'export DEVICE_LOGIN_SETTING=preserved\n')
+        self.assertFalse(list(self.home.glob('.dotfiles-backup/*/.profile')))
+
+    def test_custom_prompt_is_linked_outside_framework_sources(self):
+        (self.home/'.oh-my-zsh/.git').mkdir(parents=True)
+        self.install()
+        theme = self.home/'.oh-my-zsh/custom/themes/dracula-pro.zsh-theme'
+        self.assertTrue(theme.is_symlink())
+        self.assertEqual(theme.resolve(), ROOT/'config/zsh/themes/dracula-pro.zsh-theme')
+        self.assertFalse((self.home/'.oh-my-zsh/themes/dracula-pro.zsh-theme').exists())
 
     def test_status_detects_app_replacing_a_link(self):
         self.install('--platform', 'mac')
@@ -97,17 +117,13 @@ class InstallTests(unittest.TestCase):
         self.assertIn('Detached: '+str(config), result.stdout)
         self.assertEqual(config.read_text(), 'editor: micro\n')
 
-    def test_hep_runtime_selection_shared_home(self):
-        self.install('--profile', 'hep')
-        self.assertFalse((self.home/'.zshrc').exists())
-        self.assertFalse((self.home/'.gitconfig').exists())
-        for host, command in [('lxplus901', 'alias afs >/dev/null && declare -F ktmux >/dev/null'),
-                              ('unknown', '! alias afs >/dev/null 2>&1'),
-                              ('sneezy', 'alias mydata >/dev/null'),
-                              ('sleepy', 'alias b_data >/dev/null'),
-                              ('gpu_farm', 'alias run_pvfinder_gpu >/dev/null')]:
-            env = dict(self.env, DOTFILES_MACHINE=host)
-            result = self.run_cmd('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic', command, env=env)
+    def test_retired_environment_does_not_load_cluster_settings(self):
+        self.install()
+        env = dict(self.env, DOTFILES_PROFILE='hep', DOTFILES_MACHINE='lxplus901')
+        command = 'for name in lhcb cern mount_gpu afs proxy; do if alias "$name" >/dev/null 2>&1; then exit 1; fi; done'
+        for shell_args in [('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic'),
+                           ('zsh', '-ic')]:
+            result = self.run_cmd(*shell_args, command, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn('command not found', result.stderr)
             self.assertNotIn('syntax error', result.stderr)
@@ -131,11 +147,17 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn('command not found', result.stderr)
 
-    def test_saved_hep_profile_is_reused(self):
-        self.install('--profile', 'hep')
+    def test_retired_profile_link_migrates_to_personal(self):
+        config = self.home/'.config/dotfiles'
+        config.mkdir(parents=True)
+        (config/'profile').symlink_to(ROOT/'setup/profiles/hep')
+        self.install('--dry-run')
+        self.assertEqual((config/'profile').readlink(), ROOT/'setup/profiles/hep')
         self.install()
-        self.assertEqual((self.home/'.config/dotfiles/profile').read_text(), 'hep\n')
-        self.assertFalse((self.home/'.zshrc').exists())
+        self.assertEqual((config/'profile').read_text(), 'personal\n')
+        self.assertTrue((self.home/'.zshrc').is_symlink())
+        self.assertTrue(list(self.home.glob('.dotfiles-backup/*/.config/dotfiles/profile')))
+        self.assertEqual(self.run_cmd('bash', str(ROOT/'install.sh'), '--status').returncode, 0)
 
     def test_local_override_migration_and_early_environment(self):
         config = self.home/'.config/dotfiles'
@@ -208,25 +230,33 @@ class InstallTests(unittest.TestCase):
         config = self.home/'.config/dotfiles'
         config.mkdir(parents=True)
         (config/'profile').write_text('hep')
+        result = self.run_cmd('bash', str(ROOT/'install.sh'), '--check-existing')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.install()
-        self.assertEqual((config/'profile').read_text(), 'hep\n')
-        self.assertFalse((self.home/'.zshrc').exists())
+        self.assertEqual((config/'profile').read_text(), 'personal\n')
+        self.assertTrue((self.home/'.zshrc').is_symlink())
 
     def test_reinstall_after_checkout_moves(self):
-        for profile, platform in [('personal', 'linux'), ('hep', 'linux'), ('personal', 'mac')]:
-            with self.subTest(profile=profile, platform=platform):
+        for profile, platform in [('personal', 'linux'), ('retired', 'linux'), ('personal', 'mac')]:
+            with self.subTest(previous_profile=profile, platform=platform):
                 original = self.home/f'original checkout {profile} {platform}'
                 moved = self.home/f'moved checkout {profile} {platform}'
                 target_home = self.home/f'home {profile} {platform}'
                 target_home.mkdir()
-                shutil.copytree(ROOT, original, ignore=shutil.ignore_patterns('.git', '.claude', 'fonts', '__pycache__'))
+                shutil.copytree(ROOT, original, ignore=shutil.ignore_patterns('.git', '.claude', '.cache', 'fonts', '__pycache__'))
                 env = dict(self.env, HOME=str(target_home), ZDOTDIR=str(target_home))
-                result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, '--profile', profile, env=env)
+                result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
+                if profile == 'retired':
+                    marker = target_home/'.config/dotfiles/profile'
+                    marker.unlink()
+                    marker.symlink_to(original/'setup/profiles/hep')
                 original.rename(moved)
+                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--check-existing', env=env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), profile)
+                self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), 'personal')
                 expected_profile = moved/('config/mac/shell/.profile' if platform == 'mac' else 'shell/.profile')
                 self.assertEqual((target_home/'.profile').resolve(), expected_profile.resolve())
                 self.assertEqual((target_home/'.bashrc').resolve(), (moved/'bash/.bashrc').resolve())
@@ -236,7 +266,7 @@ class InstallTests(unittest.TestCase):
                 self.assertEqual(result.stderr, '')
 
     def test_invalid_arguments_make_no_changes(self):
-        for args in [('--profile', '../other'), ('--profile',), ('--copy',), ('--platform','mac','--profile','hep')]:
+        for args in [('--profile', '../other'), ('--profile',), ('--profile', 'hep'), ('--copy',), ('--platform','mac','--profile','hep')]:
             result = self.run_cmd('bash', str(ROOT/'install.sh'), *args)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual([p.name for p in self.home.iterdir()], ['test-bin'])

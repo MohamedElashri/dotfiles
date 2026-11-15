@@ -1,0 +1,8 @@
+# Copy to ~/.config/dotfiles/local.gitconfig after installation.
+# Choose an installed editor and use the signing key available on this device.
+[core]
+    editor = nvim
+# [user]
+#     signingkey = ssh-ed25519 YOUR_PUBLIC_KEY
+# [gpg "ssh"]
+#     program = /path/to/op-ssh-sign

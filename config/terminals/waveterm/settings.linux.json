@@ -1,0 +1,4 @@
+{
+  "web:defaulturl": "https://github.com",
+  "web:defaultsearch": "https://www.google.com/search?q={query}"
+}

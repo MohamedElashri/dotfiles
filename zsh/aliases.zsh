@@ -33,7 +33,7 @@ alias suggest='gh copilot suggest'
 
 alias weather_cincy="curl https://wttr.in/Cincinnati | head -7"
 alias weather_home="curl https://wttr.in/Al+Mansurah,+Egypt | head -7"
-alias weather_cern="curl https://wttr.in/Geneva | head -7"
+alias weather_geneva="curl https://wttr.in/Geneva | head -7"
 
 # Personal and host-specific aliases that are safe to share in this repo.
 

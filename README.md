@@ -1,76 +1,129 @@
 # dotfiles
 
-Shell and application settings for personal Linux/macOS machines and Bash-only
-HEP clusters. The installer links selected files from this checkout into your
-home directory. Keep the checkout in place so those links keep working.
+Personal Linux/macOS shell, editor, and terminal configuration.
+Keep the checkout in place: installed settings link to files in this repository.
+AI-tool installation, settings, plugins, and skills are managed separately.
 
-## Install
+## New device
 
-Clone the repository, enter it, and preview the changes:
+Install Git, Python 3.9+, Bash, and [Homebrew](https://brew.sh), then clone:
+
+```bash
+git clone --filter=blob:none --depth=1 https://github.com/MohamedElashri/dotfiles.git ~/projects/dotfiles
+cd ~/projects/dotfiles
+./bin/dotfiles bootstrap --dry-run
+./bin/dotfiles bootstrap
+```
+
+Bootstrap installs curated direct dependencies, links configuration, enables
+repository hooks, and provisions pinned shell/editor assets. It preserves
+existing asset checkouts unless you explicitly update them. The package
+manager chooses package versions; Git assets and font archives are pinned.
+
+Optional groups can be added in the same command or a later run:
+
+```bash
+./bin/dotfiles bootstrap --dev --apps --fonts meslo --dry-run
+```
+
+`--apps` installs macOS GUI apps. On Linux, install GUI apps with your distro's
+package manager. `--skip-packages` supports an existing distro-managed toolset;
+`--skip-assets` skips shell/editor downloads. Log in to 1Password, GitHub, and Atuin separately. Open a new shell afterward. See
+[setup/README.md](setup/README.md) for prerequisites, optional groups, and migration.
+
+For configuration links alone, the original installer remains available:
 
 ```bash
 ./install.sh --dry-run
-```
-
-Install the personal profile on Linux or macOS:
-
-```bash
 ./install.sh
 ```
 
-For a Linux HEP cluster, install the Bash-only profile:
+It backs up replaced files under `~/.dotfiles-backup/`. The personal profile is
+the only supported profile; retired profile markers migrate on reinstall.
+
+## Daily use
+
+The `dotfiles` command is on PATH in new shells. From an existing shell, use
+`./bin/dotfiles` directly.
 
 ```bash
-./install.sh --profile hep
+dotfiles doctor           # Local dependency, link, signing, and plugin checks
+dotfiles doctor --online  # Also verify GitHub authentication
+dotfiles sync --dry-run   # Preview an update from a clean tracking branch
+dotfiles sync            # Fast-forward, relink, and sync enabled asset groups
 ```
 
-The installer backs up files it replaces under `~/.dotfiles-backup/`. Open a
-new shell when it finishes. It links configuration only; package and application
-setup is described in [setup/README.md](setup/README.md).
+Before switching devices, review `git status` and `git diff`, commit intentional
+changes, and push. On the other device, `dotfiles sync` refuses local edits,
+replaced configuration links, and divergent Git history. It previews link
+changes, installs them with backups, and checks the result. Missing links are
+recreated. It never auto-commits, stashes, resets, or pushes.
 
-## Use and customize
+`dotfiles sync --check` runs local preflight without fetching or changing files.
+Bootstrap remembers enabled shell/editor asset groups in the local
+`~/.config/dotfiles/features.json`. On an older installation, use
+`dotfiles sync --assets` to enable those groups. Package upgrades stay in
+your package manager; rerun bootstrap to install newly declared dependencies.
+Restart apps that cache configuration after syncing.
 
-Edit files in this checkout. Changes to linked files take effect directly; open
-a new shell to reload shell settings. Common files:
+If an app replaces a link, compare its detached file with the source shown by
+`./install.sh --status`. Copy desired edits into the repository before reinstalling.
+Doctor and `./install.sh --status` report detached files without changing them.
+Running the installer normally applies links after backing up replaced files.
 
-| To change | Edit |
+## What to edit
+
+| Settings | Source |
 |---|---|
-| Shared environment and PATH | `shell/env.sh` |
-| Bash and Zsh aliases | `shell/aliases.sh` |
-| Zsh settings, aliases, and functions | `zsh/` |
+| Shared environment and Bash/Zsh aliases | `shell/` |
+| Zsh settings and functions | `zsh/` |
 | Bash settings and tools | `bash/` |
-| Linux/macOS aliases | `platform/` |
-| HEP cluster settings | `hep/` |
-| Git and SSH settings | `config/git/`, `config/ssh/` |
-| Application settings | `config/` |
-| Personal commands | `bin/` |
+| OS-specific shell settings | `platform/`, `config/mac/zsh/` |
+| Custom shell prompt | `config/zsh/themes/` |
+| Shared CLI/editor settings | `config/cli/`, `config/editors/`, `config/tmux/` |
+| Waveterm common settings | `config/terminals/waveterm/settings.common.json` |
+| Waveterm OS overrides | `config/terminals/waveterm/settings.linux.json`, `settings.mac.json` |
+| Waveterm widgets and themes | The platform's `config/` directory |
+| Git and SSH | `config/git/`, `config/ssh/`, `config/mac/ssh/` |
+| Tool, plugin, and font choices | `setup/` manifests |
 
-Keep machine-specific or private settings in local files under
-`~/.config/dotfiles/`; they are loaded after the shared settings:
+Waveterm's installed `settings.json` files and `zsh/plugins.zsh` are generated
+and tracked. Shell plugin choices live in `setup/assets.json`. After
+editing common settings or an OS override, run `dotfiles render` and commit
+both the inputs and outputs. Doctor detects edits made directly to generated
+outputs, so review and move any desired app-written changes into the inputs.
+Older Mac source paths are compatibility symlinks to the shared configuration.
 
-- `local.bash` for Bash aliases and settings
-- `local.zsh` for Zsh aliases and settings
-- `local.env.zsh` for Zsh environment variables needed before shell tools load
-- `local.gitconfig` for Git overrides
+Private and device-specific settings stay under `~/.config/dotfiles/`:
+`local.bash`, `local.zsh`, `local.env.zsh`, and `local.gitconfig`. Examples are in
+`templates/local/`. Account databases, credentials, SSH keys, and application permission databases stay outside Git. VS Code keeps its own
+Settings Sync; Atuin owns history sync. See the ownership table in
+[setup/README.md](setup/README.md).
 
-Examples are in `templates/local/`. Do not commit credentials, tokens, private
-keys, or authentication files. To enable the repository's commit and push
-checks in this checkout, run:
-
-```bash
-git config --local core.hooksPath .githooks
-```
-
-## Update and check
-
-On another machine, pull the latest changes and run `./install.sh` again when
-the checkout moves or the set of installed files changes. Check whether an app
-has replaced a managed symlink with:
+## Optional fonts
 
 ```bash
-./install.sh --status
+dotfiles fonts --list
+dotfiles fonts meslo fira-code --dry-run
+dotfiles fonts meslo fira-code
 ```
 
-If it reports a detached file, review that file and copy any desired changes
-back into the matching file in this repository. Use `./install.sh --help` to
-see installer options. For HEP cluster selection, see [hep/README.md](hep/README.md).
+Downloads are pinned and SHA-256 verified, cached locally, and installed only
+for your user. Original fonts from this checkout are preserved under the
+ignored `.cache/legacy-fonts/`. Font binaries are removed from the current Git
+tree; historical commits remain intact. The filtered shallow clone above
+avoids fetching those old binary versions.
+
+## Verify changes
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/check_private.py --worktree
+python3 scripts/render_configs.py --check
+git diff --check
+```
+
+Tests use disposable homes and local Git remotes. They require Git, Python 3.9+,
+Bash, Zsh, and SSH, and do not download packages or call account services.
+`dotfiles hooks` enables the commit/push guards in this checkout. Existing
+custom hook paths are preserved and must chain these guards explicitly.

@@ -1,0 +1,87 @@
+{
+  "git": [
+    {
+      "group": "shell",
+      "path": ".oh-my-zsh",
+      "repo": "https://github.com/ohmyzsh/ohmyzsh.git",
+      "revision": "6010fb6260f359e71d99ba25f05f9215809b3ed2"
+    },
+    {
+      "group": "shell",
+      "path": ".oh-my-zsh/custom/plugins/zsh-autosuggestions",
+      "repo": "https://github.com/zsh-users/zsh-autosuggestions.git",
+      "revision": "85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5"
+    },
+    {
+      "group": "shell",
+      "path": ".oh-my-zsh/custom/plugins/you-should-use",
+      "repo": "https://github.com/MichaelAquilina/zsh-you-should-use.git",
+      "revision": "5f3d129864ee4505043d88c3486224f1d75b692e"
+    },
+    {
+      "group": "shell",
+      "path": ".oh-my-zsh/custom/plugins/insult-zsh",
+      "repo": "https://github.com/MohamedElashri/insult-zsh.git",
+      "revision": "3afcbd297392d3b120ee1c4f1bf3a6621c9cf613"
+    },
+    {
+      "group": "shell",
+      "path": ".oh-my-zsh/custom/plugins/zsh-syntax-highlighting",
+      "repo": "https://github.com/zsh-users/zsh-syntax-highlighting.git",
+      "revision": "e6683f20e5c38d3e5447f45845d04ddda75d0f23"
+    },
+    {
+      "group": "shell",
+      "platform": "linux",
+      "path": ".oh-my-zsh/custom/plugins/adguard-helper",
+      "repo": "https://github.com/MohamedElashri/adguard-helper.git",
+      "revision": "ae5a2a4352fe1f2bfc34fdf2b58da822c554f211"
+    },
+    {
+      "group": "shell",
+      "platform": "mac",
+      "path": ".oh-my-zsh/custom/themes/powerlevel10k",
+      "repo": "https://github.com/romkatv/powerlevel10k.git",
+      "revision": "64df59615df306c7a8bb37d0a5a1ebc46337dfb1"
+    },
+    {
+      "group": "editors",
+      "path": ".config/LazyVim",
+      "repo": "https://github.com/LazyVim/starter.git",
+      "revision": "803bc181d7c0d6d5eeba9274d9be49b287294d99"
+    }
+  ],
+  "micro_plugins": [
+    "detectindent",
+    "editorconfig",
+    "filemanager",
+    "fzf",
+    "jump",
+    "palettero",
+    "quickfix"
+  ],
+  "shell_plugins": {
+    "common": [
+      "git",
+      "zsh-autosuggestions",
+      "you-should-use",
+      "insult-zsh"
+    ],
+    "linux": [
+      "adguard-helper"
+    ],
+    "mac": [
+      "history",
+      "history-substring-search",
+      "encode64",
+      "extract",
+      "cp",
+      "copypath",
+      "copyfile",
+      "sublime"
+    ],
+    "last": [
+      "zsh-syntax-highlighting"
+    ]
+  }
+}

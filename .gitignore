@@ -21,7 +21,7 @@
 *.kdbx
 *.sqlite
 *.sqlite3
-# OpenCode's local MCP file contains a token; only opencode.jsonc is portable.
+# Local provider configuration and credentials stay outside this repository.
 config/mac/cli/opencode/config.json
 config/mac/cli/opencode/opencode.jsonc
 config/mac/cli/dnscrypt-proxy/dnscrypt-proxy.toml
@@ -37,3 +37,12 @@ __pycache__/
 
 # Machine-local agent permissions
 .claude/settings.local.json
+
+# AI-tool configuration and skills are managed separately from dotfiles.
+config/ai/
+config/cli/claude
+config/mac/cli/claude
+config/terminals/waveterm/config/presets
+
+# Downloaded assets and the preserved pre-manifest font collection.
+.cache/
