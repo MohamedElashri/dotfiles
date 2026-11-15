@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - name: Install essential packages only
         run: |
-          awk 'NF && $1 !~ /^#/ {print $0}' setup/linux-packages.txt | xargs apt-get install -y --no-install-recommends
+          awk 'NF && $1 !~ /^#/ {print $0}' setup/minimal-linux-packages.txt | xargs apt-get install -y --no-install-recommends
       - name: Bootstrap a minimal home without desktop tools
         shell: bash
         run: |
@@ -32,6 +32,6 @@ jobs:
       - name: Install test tools
         run: apt-get install -y --no-install-recommends zsh shellcheck
       - name: Shell checks
-        run: shellcheck bin/dotfiles install.sh scripts/doctor.sh hep/install.sh hep/.bashrc hep/.profile hep/env.sh
+        run: shellcheck bin/dotfiles install.sh scripts/doctor.sh
       - name: Integration tests
         run: python3 -m unittest discover -s tests -v

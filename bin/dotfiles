@@ -1,45 +1,29 @@
 #!/usr/bin/env bash
-# Manage this checkout from Bash or Zsh on macOS and Linux (including Bash 3.2).
 set -euo pipefail
-
-script=${BASH_SOURCE[0]}
-while [ -L "$script" ]; do
-  directory=$(cd -P "$(dirname "$script")" && pwd)
-  script=$(readlink "$script")
-  case "$script" in /*) ;; *) script=$directory/$script ;; esac
+file=${BASH_SOURCE[0]}
+while [ -L "$file" ]; do
+  directory=$(cd -P "$(dirname "$file")" && pwd)
+  file=$(readlink "$file")
+  case "$file" in /*) ;; *) file="$directory/$file" ;; esac
 done
-ROOT=$(cd -P "$(dirname "$script")/.." && pwd)
-
-usage() {
-  cat <<'EOF'
-Usage: dotfiles <command>
-
-  update [--check]       Fetch and validate upstream, then apply with recovery.
-                         --check previews without changing live configuration.
-  rollback               Undo the last update if no subsequent edits conflict.
-  install [options]      Link configuration (see install --help).
-  status [options]       Check managed links without changing them.
-  doctor [--profile p]   Check links, required tools, and Git/auth setup offline.
-  help                   Show this help.
-
-On another machine, run update after committing and pushing your changes.
-The installer detects macOS/Linux and remembers the installed profile.
-EOF
-}
-
-command=${1:-help}
-[ "$#" -eq 0 ] || shift
+root=$(cd -P "$(dirname "$file")/.." && pwd)
+command=${1:---help}
 case "$command" in
-  help|--help|-h) usage ;;
-  install) exec bash "$ROOT/install.sh" "$@" ;;
-  status) exec bash "$ROOT/install.sh" "$@" --status ;;
-  doctor) exec bash "$ROOT/scripts/doctor.sh" "$@" ;;
   update|rollback)
-    if ! command -v python3 >/dev/null 2>&1; then
-      echo 'Updates and rollback require Python 3. Installation only requires Bash.' >&2
-      exit 1
+    exec python3 "$root/scripts/update.py" "$@" ;;
+  install)
+    shift; exec bash "$root/install.sh" "$@" ;;
+  status)
+    shift; exec bash "$root/install.sh" "$@" --status ;;
+  doctor)
+    profile=
+    if [ -r "$HOME/.config/dotfiles/profile" ]; then
+      IFS= read -r profile < "$HOME/.config/dotfiles/profile" || true
     fi
-    exec python3 "$ROOT/scripts/update.py" "$command" "$@"
+    if [ "$profile" != personal ] || ! command -v python3 >/dev/null 2>&1 || [ "${2-}" = --profile ]; then
+      shift; exec bash "$root/scripts/doctor.sh" "$@"
+    fi
     ;;
-  *) printf 'Unknown command: %s\n' "$command" >&2; usage >&2; exit 2 ;;
+  help) shift; set -- --help "$@" ;;
 esac
+exec python3 "$root/scripts/workflow.py" "$@"

@@ -117,7 +117,7 @@ unset _dotfiles_file _dotfiles_dir
 [ -r "$HOME/.config/dotfiles/site.bash" ] && . "$HOME/.config/dotfiles/site.bash"
 . "$DOTFILES_ROOT/shell/env.sh"
 . "$DOTFILES_ROOT/shell/aliases.sh"
-# Preserve the Bash listing shortcuts; HEP overrides these below.
+# Preserve the Bash listing shortcuts.
 alias ll='ls -alF'
 alias la='ls -A'
 case "$(uname -s)" in
@@ -125,12 +125,5 @@ case "$(uname -s)" in
   Linux) . "$DOTFILES_ROOT/platform/linux.sh" ;;
 esac
 . "$DOTFILES_ROOT/bash/tools.bash"
-_dotfiles_profile=personal
-[ -r "$HOME/.config/dotfiles/profile" ] && read -r _dotfiles_profile < "$HOME/.config/dotfiles/profile"
-if [ "${DOTFILES_PROFILE:-$_dotfiles_profile}" = hep ]; then
-  . "$DOTFILES_ROOT/hep/common.bash"
-  . "$DOTFILES_ROOT/hep/select.bash"
-fi
-unset _dotfiles_profile
 [ -r "$HOME/.config/dotfiles/local.bash" ] && . "$HOME/.config/dotfiles/local.bash"
 return 0

@@ -1,0 +1,45 @@
+{
+    "backupsuffix": "~",
+    "colorcolumn": 100,
+    "colorscheme": "dracula-tc",
+    "diffgutter": true,
+    "filemanager-openonstart": false,
+    "filemanager-showdotfiles": true,
+    "filemanager-showignored": false,
+    "ft:cpp": {
+        "tabsize": 4
+    },
+    "ft:cuda": {
+        "tabsize": 4
+    },
+    "ft:javascript": {
+        "tabsize": 2
+    },
+    "ft:json": {
+        "tabsize": 2
+    },
+    "ft:markdown": {
+        "colorcolumn": 0,
+        "softwrap": true
+    },
+    "ft:python": {
+        "indentchar": " ",
+        "tabsize": 4
+    },
+    "ft:text": {
+        "colorcolumn": 0,
+        "softwrap": true
+    },
+    "ft:typescript": {
+        "tabsize": 2
+    },
+    "ft:yaml": {
+        "tabsize": 2
+    },
+    "relativeruler": true,
+    "savecursor": true,
+    "scrollbar": true,
+    "statusformatl": "$(filename) $(modified) ($(line),$(col))",
+    "statusformatr": "ft:$(opt:filetype) | $(opt:fileformat) | $(opt:encoding)",
+    "tabstospaces": true
+}

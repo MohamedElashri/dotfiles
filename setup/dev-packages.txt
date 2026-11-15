@@ -1,0 +1,5 @@
+# Optional development tools; installed by bootstrap --dev.
+go
+node
+uv
+ffmpeg

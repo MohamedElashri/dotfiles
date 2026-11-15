@@ -19,7 +19,7 @@ class PrivateCheckTests(unittest.TestCase):
 
     def test_named_credential_assignment_is_rejected(self):
         self.assertEqual(
-            check_private.check_content(b'{"CERNGITLAB_' + b'TOKEN": "' + b'synthetic-value-123456"}'),
+            check_private.check_content(b'{"SERVICE_' + b'TOKEN": "' + b'synthetic-value-123456"}'),
             "credential assignment",
         )
         self.assertEqual(

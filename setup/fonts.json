@@ -1,0 +1,26 @@
+{
+  "meslo": {
+    "url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Meslo.zip",
+    "sha256": "13b502ac8c2bd9d3161018064560e23cd42b175bb730780a270975265a19ad57"
+  },
+  "fira-code": {
+    "url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/FiraCode.zip",
+    "sha256": "7cc4ffd8f7a1fc914cdab7b149808298165ff7a7f40e40d82dea9ebe41e8ca0b"
+  },
+  "monaspace": {
+    "url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Monaspace.zip",
+    "sha256": "032c065c53fe08c633eefc7b866b32595316c3563626145480d612aceef93e62"
+  },
+  "victor-mono": {
+    "url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/VictorMono.zip",
+    "sha256": "9b4bd827fc59f60c5bd3306a31c148208522d5d6801b9fb5233c39c503013f2f"
+  },
+  "ubuntu": {
+    "url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Ubuntu.zip",
+    "sha256": "ad18de7f0ccf503123652c92eb8bcb08b53a54153b467aa46a1c58f04a4d4915"
+  },
+  "ubuntu-mono": {
+    "url": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/UbuntuMono.zip",
+    "sha256": "5d040e67a5649e6c189cf62b3f1ab9c50adbfecbd341288d3a0558979319209e"
+  }
+}

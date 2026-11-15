@@ -227,7 +227,8 @@ def validate(candidate, profile, scratch):
     test_home = scratch / 'home'
     test_home.mkdir()
     env = dict(os.environ, HOME=str(test_home), ZDOTDIR=str(test_home),
-               RUN_QURAN_VERSE_ON_STARTUP='false', TERM='dumb', PATH='/usr/bin:/bin')
+               RUN_QURAN_VERSE_ON_STARTUP='false', TERM='dumb', PATH='/usr/bin:/bin',
+               HOMEBREW_PREFIX=str(scratch / 'no-homebrew'))
     installer(candidate, '--profile', profile, '--dry-run', env=env, capture=True)
     installer(candidate, '--profile', profile, env=env, capture=True)
     installer(candidate, '--profile', profile, '--status', env=env, capture=True)
@@ -277,7 +278,7 @@ def update(state_root, check):
     if not profile_path.exists():
         raise UpdateError('Install dotfiles first with ./install.sh before updating.')
     profile = profile_path.read_text().strip()
-    if profile not in ('personal', 'minimal', 'hep'):
+    if profile not in ('personal', 'minimal'):
         raise UpdateError('Invalid installed profile.')
     # Detect detached AND missing existing links before fetching or applying anything.
     installer(ROOT, '--status', capture=True)

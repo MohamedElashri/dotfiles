@@ -6,9 +6,6 @@
 [credential]
     username = MohamedElashri
 
-[credential "https://gitlab.cern.ch"]
-    username = melashri
-
 [credential "https://github.com"]
     helper =
     helper = !gh auth git-credential

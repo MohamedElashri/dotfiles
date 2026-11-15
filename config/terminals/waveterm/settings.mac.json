@@ -1,0 +1,4 @@
+{
+  "web:defaulturl": "http://www.perplexity.ai",
+  "web:defaultsearch": "https://www.perplexity.ai/?q={query}"
+}

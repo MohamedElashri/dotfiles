@@ -1,5 +1,8 @@
-claude-code
-codex
+# Optional Mac GUI apps; installed by bootstrap --apps.
+1password
+ghostty
 kitty
-vicinae
+visual-studio-code
 warp
+wave
+zed

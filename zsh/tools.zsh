@@ -12,18 +12,18 @@ fi
 # The setup below filters this list against plugins actually installed on the
 # current machine, so missing optional plugins do not break shell startup.
 
+source "$DOTFILES_ROOT/zsh/plugins.zsh"
 if [[ "$(uname -s)" == Darwin ]]; then
-  DOTFILES_OMZ_PLUGINS=(history history-substring-search encode64 extract cp copypath copyfile autoupdate eza-zsh auto-notify zsh-apple-touchbar sublime git-extra-commands git zsh-syntax-highlighting zsh-autosuggestions tumult fd-zsh fzf-tab you-should-use insult-zsh)
   CASE_SENSITIVE=true
   ENABLE_CORRECTION=true
-else
-  DOTFILES_OMZ_PLUGINS=(git zsh-autosuggestions you-should-use adguard-helper insult-zsh)
 fi
 
 # Oh My Zsh framework setup.
 
 export ZSH="${ZSH:-$HOME/.oh-my-zsh}"
 ZSH_CUSTOM="${ZSH_CUSTOM:-$ZSH/custom}"
+# Pinned framework/plugins are updated by dotfiles sync.
+zstyle ':omz:update' mode disabled
 
 _omz_theme_exists() {
   local theme="$1"

@@ -1,61 +1,69 @@
 # dotfiles
 
-Bash, Zsh, Git, and app settings for macOS/Linux, plus a standalone HEP setup.
-Files are symlinked into your home directory; keep the checkout in place.
+Personal Linux/macOS shell, Git, editor, and terminal settings. Installed files
+link to this checkout, so keep it in place. AI tools and their settings are
+managed separately; HEP integrations are retired.
 
 ## Install
 
 | Profile | Use | Command |
 |---|---|---|
-| `minimal` | VMs and headless machines; Bash + terminal Git | `./install.sh --profile minimal` |
-| `personal` (default) | Personal workstations; shells, Git/SSH, and apps | `./install.sh --profile personal` |
-| `hep` | Linux clusters; independent Bash setup | `./hep/install.sh` |
+| `personal` (default) | Workstations, shared CLI/editor settings, and apps | `./bin/dotfiles bootstrap` |
+| `minimal` | VMs/headless machines; Bash and terminal Git | `./install.sh --profile minimal` |
 
-Install the [essential packages](setup/README.md), then clone and install your
-chosen profile. For a VM:
+For a workstation, install Git, Python 3.9+, Bash, and [Homebrew](https://brew.sh):
 
 ```bash
-git clone https://github.com/MohamedElashri/dotfiles.git ~/dotfiles
-cd ~/dotfiles
-./install.sh --profile minimal --dry-run
-./install.sh --profile minimal
-./bin/dotfiles doctor
+git clone --filter=blob:none --depth=1 https://github.com/MohamedElashri/dotfiles.git ~/projects/dotfiles
+cd ~/projects/dotfiles
+./bin/dotfiles bootstrap --dry-run
+./bin/dotfiles bootstrap
 ```
 
-Open a new shell afterward; minimal uses Bash. HEP can also be installed from a
-copy of `hep/` alone, including hidden files: [HEP instructions](hep/README.md).
+Bootstrap installs curated tools, pinned shell/editor assets, links, and Git
+hooks. Optional flags include `--dev`, Mac-only `--apps`, and `--fonts meslo`.
+`--skip-packages` supports an existing toolset; `--skip-assets` skips downloads.
+For links alone, use `./install.sh --dry-run`, then `./install.sh`.
+
+For minimal devices, follow the [essential package instructions](setup/README.md).
+Open a new shell afterward. Accounts, SSH keys, and signing credentials stay local.
 
 ## Everyday commands
 
 ```bash
-dotfiles update --check  # preview and validate upstream
-dotfiles update         # apply a validated update
-dotfiles doctor         # check tools and configuration offline
-dotfiles status         # check managed links
-dotfiles rollback       # undo the last successful update
-dotfiles install        # reapply links without updating
+dotfiles doctor           # Local links, tools, signing, and plugin checks
+dotfiles update --check   # Fetch and validate upstream without changing live settings
+dotfiles update           # Apply a validated update with a recovery journal
+dotfiles rollback         # Undo the last update when later edits do not conflict
+dotfiles sync             # Fast-forward, relink, and reconcile enabled assets
+dotfiles status           # Inspect managed links
+dotfiles assets --update  # Apply the declared shell/editor asset revisions
+dotfiles fonts --list     # List optional checksum-verified font downloads
 ```
 
-Commit and push edits from this checkout, then run `dotfiles update` on other
-machines. Updates require Bash, Git, Python 3, and a clean checkout.
+Review, commit, and push shared edits before updating another device. Updates
+refuse dirty checkouts, conflicting files, and divergent history. Sync also
+recreates missing links and supports `--dry-run`; it has no rollback journal.
+Restart applications that cache configuration after updates.
 
-## Customize
+## Customize and verify
 
-| To change | Edit |
-|---|---|
-| Environment and PATH | `shell/env.sh` |
-| Shared aliases | `shell/aliases.sh` |
-| Shell settings | `bash/`, `zsh/` |
-| OS-specific settings | `platform/` |
-| Git and SSH | `config/git/`, `config/ssh/` |
-| Apps | `config/` |
-| Personal commands | `bin/` |
+Edit portable CLI/editor preferences in `config/cli/`, `config/editors/`, and
+`config/tmux/`; shell settings live in `shell/`, `zsh/`, and `platform/`.
+Waveterm and shell-plugin selections have generated outputs: edit their source
+preferences/manifests, then run `dotfiles render` before committing.
 
-Keep private and machine-specific overrides in `~/.config/dotfiles/local.*`;
-[examples](templates/local/) show the supported filenames.
+Keep device-only overrides under `~/.config/dotfiles/local.*` using the
+[examples](templates/local/). Credentials, history databases, and AI settings
+stay outside Git. Fonts are optional downloads; the old binaries are preserved
+locally in the ignored `.cache/legacy-fonts/`, with Git history left intact.
 
-Personal/minimal Git settings globally ignore AI files such as `.claude` and
-`.codex`, plus OS clutter and editor leftovers. Already tracked files stay tracked.
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/check_private.py --worktree
+python3 scripts/render_configs.py --check
+git diff --check
+```
 
-See [usage and recovery](docs/usage.md) for override details, backups, Git ignores,
-and troubleshooting, or [machine setup](setup/README.md) for packages and apps.
+See [usage and recovery](docs/usage.md) for overrides, Git ignores, backups, and
+rollback, or [machine setup](setup/README.md) for provisioning and sync ownership.

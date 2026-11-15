@@ -1,7 +1,8 @@
 # Usage and recovery
 
-See the [README](../README.md) for installation and commands, and the
-[HEP guide](../hep/README.md) for standalone cluster setup.
+See the [README](../README.md) for installation and commands, and
+[machine setup](../setup/README.md) for workstation provisioning.
+HEP integrations are retired; AI tools and their settings are managed separately.
 
 ## Local settings
 
@@ -50,6 +51,20 @@ Installer replacement backups are separate, under `~/.dotfiles-backup/`.
 
 Reinstalling remembers your profile. Switching profiles leaves previous links
 in place; use a fresh home for a clean minimal setup.
+
+## Shared configuration and assets
+
+- CLI/editor preferences live in `config/cli/`, `config/editors/`, and `config/tmux/`.
+- Shell preferences and aliases live in `shell/`, `zsh/`, and `platform/`.
+- Waveterm preferences come from `settings.common.json` and its Linux/Mac overrides
+  under `config/terminals/waveterm/`. Run `dotfiles render` after editing them and
+  commit both the inputs and generated outputs. It also renders shell plugin choices.
+- `dotfiles bootstrap` provisions the curated workstation tools and shell/editor
+  assets. Existing assets are preserved; `dotfiles assets --update` applies pins.
+- `dotfiles sync` fast-forwards configuration, restores missing links, and reconciles
+  enabled shell/editor assets. Use `update` when you need pre-install validation
+  and a rollback journal. Sync does not create an update rollback point.
+- `dotfiles fonts --list` lists optional checksum-verified font downloads.
 
 ## Global Git ignores
 

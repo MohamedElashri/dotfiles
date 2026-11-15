@@ -1,4 +1,4 @@
-"""Fresh-home coverage for minimal machines, offline diagnostics, and standalone HEP."""
+"""Fresh-home coverage for minimal machines, offline diagnostics, and profile selection."""
 from pathlib import Path
 import os
 import shutil
@@ -131,60 +131,9 @@ class ProfileTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Profile not installed', result.stdout)
 
-    def test_copied_hep_folder_installs_and_moves_independently(self):
-        standalone = self.base / 'cluster config'
-        shutil.copytree(ROOT / 'hep', standalone)
-        (self.home / '.bashrc').write_text('export SITE_KEPT=yes\n')
-        (self.home / '.gitconfig').write_text('# existing cluster Git settings\n')
-        for target in (standalone, self.base / 'moved cluster config'):
-            if target != standalone:
-                standalone.rename(target)
-            result = self.run_cmd('bash', target / 'install.sh')
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            result = self.run_cmd('bash', target / 'install.sh', '--status')
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            result = self.run_cmd('bash', '--noprofile', '--rcfile', self.home / '.bashrc', '-ic',
-                                  'test "$SITE_KEPT" = yes && test -z "${DOTFILES_ROOT-}" && alias afs >/dev/null',
-                                  env=dict(self.env, DOTFILES_MACHINE='lxplus900'))
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn('No such file', result.stderr)
-            self.assertEqual((self.home / '.gitconfig').read_text(), '# existing cluster Git settings\n')
-            self.assertFalse((self.home / '.zshrc').exists())
-            self.assertFalse((self.home / '.ssh').exists())
 
-    def test_hep_install_without_git_python_or_zsh(self):
-        standalone = self.base / 'hep-only'
-        shutil.copytree(ROOT / 'hep', standalone)
-        # Ubuntu's system Bash rc calls groups before the user's rc loads.
-        for tool in ('bash', 'dirname', 'readlink', 'date', 'mkdir', 'ln', 'mv', 'cp', 'cmp', 'dircolors', 'groups'):
-            executable = shutil.which(tool, path='/usr/bin:/bin')
-            if executable:
-                (self.fake / tool).symlink_to(executable)
-        env = dict(self.env, PATH=str(self.fake), DOTFILES_MACHINE='unknown')
-        result = self.run_cmd('/bin/bash', standalone / 'install.sh', env=env)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        result = self.run_cmd('/bin/bash', '--noprofile', '--rcfile', self.home / '.bashrc', '-ic',
-                              'declare -F extract >/dev/null', env=env)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn('command not found', result.stderr)
 
-    def test_legacy_hep_layout_migrates_without_capturing_managed_bashrc(self):
-        config = self.home / '.config/dotfiles'
-        config.mkdir(parents=True)
-        (config / 'profile').symlink_to(ROOT / 'setup/profiles/hep')
-        (self.home / '.bashrc').symlink_to(ROOT / 'bash/.bashrc')
-        (self.home / '.profile').symlink_to(ROOT / 'shell/.profile')
-        self.install(profile='hep')
-        self.assertFalse((config / 'site.bash').exists())
-        self.assertEqual((self.home / '.bashrc').resolve(), ROOT / 'hep/.bashrc')
-        self.assertEqual((self.home / '.profile').resolve(), ROOT / 'hep/.profile')
 
-    def test_hep_doctor_does_not_require_personal_tools(self):
-        self.install(profile='hep')
-        result = self.doctor()
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('Standalone HEP requires Bash', result.stdout)
-        self.assertNotIn('Commit signing', result.stdout)
 
 
 if __name__ == '__main__':

@@ -11,13 +11,13 @@ if [ -r "$HOME/.config/dotfiles/profile" ]; then
 fi
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal, minimal, or hep' >&2; exit 2; }; profile=$2; shift ;;
-    --help|-h) echo 'Usage: dotfiles doctor [--profile personal|minimal|hep]'; exit 0 ;;
+    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal or minimal' >&2; exit 2; }; profile=$2; shift ;;
+    --help|-h) echo 'Usage: dotfiles doctor [--profile personal|minimal]'; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
   shift
 done
-case "$profile" in personal|minimal|hep) ;; *) echo 'Invalid profile' >&2; exit 2 ;; esac
+case "$profile" in personal|minimal) ;; *) echo 'Invalid profile' >&2; exit 2 ;; esac
 failures=0; warnings=0
 ok() { printf '[OK] %s\n' "$*"; }
 info() { printf '[INFO] %s\n' "$*"; }
@@ -47,7 +47,7 @@ printf 'Dotfiles doctor | profile: %s | OS: %s\n' "$profile" "$(uname -s)"
 case "$(uname -s)" in Linux|Darwin) ;; *) fail 'Supported platforms are Linux and macOS.' ;; esac
 required bash 'install Bash before running the installer'
 if [ "$installed" = 0 ]; then
-  fail "Profile not installed. Run ./install.sh --profile $profile (or hep/install.sh for HEP)."
+  fail "Profile not installed. Run ./install.sh --profile $profile."
 else
   if bash "$ROOT/install.sh" --profile "$profile" --status; then
     ok 'Managed links are intact'
@@ -55,10 +55,6 @@ else
     fail 'Managed links need attention. Reconcile detached files before reinstalling.'
   fi
 fi
-if [ "$profile" = hep ]; then
-  info 'Standalone HEP requires Bash and standard Linux utilities; Git, Python, Zsh, and desktop apps are optional.'
-  info 'Site modules/CVMFS and cluster authentication remain managed by the cluster.'
-else
   required git 'install the essential packages in setup/README.md'
   required python3 'needed by update/rollback and private-data hooks; installation itself works without it'
   if have git; then
@@ -114,6 +110,5 @@ else
   else
     info 'Minimal installs Bash and Git settings only. Optional CLI tools can be added from setup/.'
   fi
-fi
 printf '\nDoctor: %s failure(s), %s warning(s). No settings changed; authentication was not contacted.\n' "$failures" "$warnings"
 [ "$failures" = 0 ]
