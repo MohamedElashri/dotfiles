@@ -4,10 +4,30 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 : "${HOME:?HOME must be set}"
 PROFILE=personal
+physical_path() {
+  local candidate=$1 suffix= parent directory normalized
+  # Resolve existing ancestors even when a moved checkout's leaf no longer
+  # exists. macOS aliases /var through /private/var, including temporary homes.
+  while [ ! -d "$candidate" ]; do
+    parent=$(dirname "$candidate")
+    [ "$parent" != "$candidate" ] || return 1
+    suffix="/$(basename "$candidate")$suffix"
+    candidate=$parent
+  done
+  directory=$(cd -P "$candidate" 2>/dev/null && pwd) || return 1
+  normalized="${directory%/}$suffix"
+  printf '%s\n' "${normalized:-/}"
+}
+link_reference() {
+  local reference
+  reference=$(readlink "$1" 2>/dev/null) || return 1
+  case "$reference" in /*) ;; *) reference="$(dirname "$1")/$reference" ;; esac
+  physical_path "$reference"
+}
 PREVIOUS_ROOT=$ROOT
 # The installed marker records the old checkout even after it has moved.
 # Retired profiles migrate to the personal setup; never load their contents.
-profile_link=$(readlink "$HOME/.config/dotfiles/profile" 2>/dev/null || true)
+profile_link=$(link_reference "$HOME/.config/dotfiles/profile" || true)
 case "$profile_link" in
   /*/setup/profiles/*)
     PREVIOUS_ROOT=${profile_link%/setup/profiles/*}
@@ -44,7 +64,7 @@ profile_source=shell/.profile
 if [ ! -e "$HOME/.profile" ] && [ ! -L "$HOME/.profile" ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
   add "$profile_source" .profile
 elif [ -L "$HOME/.profile" ]; then
-  case "$(readlink "$HOME/.profile")" in
+  case "$(link_reference "$HOME/.profile" || true)" in
     "$ROOT/sh/.profile"|"$ROOT/shell/.profile"|"$ROOT/config/mac/shell/.profile"|"$PREVIOUS_ROOT/sh/.profile"|"$PREVIOUS_ROOT/shell/.profile"|"$PREVIOUS_ROOT/config/mac/shell/.profile") add "$profile_source" .profile ;;
   esac
 fi
@@ -98,6 +118,7 @@ if [ "$CHECK_EXISTING" = 1 ]; then
   canonical_path() {
     local candidate=$1 directory next hops=0
     while [ "$hops" -lt 40 ]; do
+      candidate=$(physical_path "$candidate") || return 1
       case "$candidate" in "$PREVIOUS_ROOT/"*) candidate="$ROOT/${candidate#"$PREVIOUS_ROOT"/}" ;; esac
       directory=$(cd -P "$(dirname "$candidate")" 2>/dev/null && pwd) || return 1
       candidate="$directory/$(basename "$candidate")"
@@ -116,7 +137,7 @@ if [ "$CHECK_EXISTING" = 1 ]; then
     # Profile markers are installer metadata, including retired profile names.
     if [ "$dest" = "$HOME/.config/dotfiles/profile" ]; then
       if [ -L "$dest" ]; then
-        case "$(readlink "$dest")" in "$ROOT/setup/profiles/"*|"$PREVIOUS_ROOT/setup/profiles/"*) continue ;; esac
+        case "$(link_reference "$dest" || true)" in "$ROOT/setup/profiles/"*|"$PREVIOUS_ROOT/setup/profiles/"*) continue ;; esac
       elif [ -f "$dest" ]; then
         saved_profile=
         IFS= read -r saved_profile < "$dest" || true
@@ -165,9 +186,9 @@ run() {
 # initialization and module definitions. Existing repo links need no hook.
 site="$HOME/.config/dotfiles/site.bash"
 if [ "$OS" != Darwin ] && [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$ROOT/bash/.bashrc"; then
-  old_target=$(readlink "$HOME/.bashrc" || true)
+  old_target=$(link_reference "$HOME/.bashrc" || true)
   case "$old_target" in
-    "$ROOT/"*) ;;
+    "$ROOT/"*|"$PREVIOUS_ROOT/"*) ;;
     *)
       if [ -e "$site" ] || [ -L "$site" ]; then
         echo "Existing site hook and unmanaged .bashrc; reconcile $site before installation." >&2
@@ -183,7 +204,7 @@ fi
 for relative in .waveterm/config .config/ghostty; do
   dest="$HOME/$relative"
   if [ -L "$dest" ]; then
-    case "$(readlink "$dest")" in
+    case "$(link_reference "$dest" || true)" in
       "$ROOT/"*|"$PREVIOUS_ROOT/"*)
         copy_contents=0
         [ ! -d "$dest" ] || copy_contents=1

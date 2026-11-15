@@ -22,7 +22,7 @@ class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='dotfiles workflow ')
         self.addCleanup(self.temp.cleanup)
-        self.base = Path(self.temp.name)
+        self.base = Path(self.temp.name).resolve()
         self.home = self.base / 'home'
         self.home.mkdir()
         self.root = self.base / 'checkout'
@@ -133,6 +133,41 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('reconcile', result.stderr)
         self.assertTrue(directory.is_symlink())
         self.assertFalse((self.home / '.dotfiles-backup').exists())
+
+    def test_legacy_directory_link_via_checkout_alias_preserves_sources(self):
+        alias = self.base / 'checkout-alias'
+        alias.symlink_to(self.root, target_is_directory=True)
+        directory = self.home / '.waveterm/config'
+        directory.parent.mkdir(parents=True)
+        directory.symlink_to(alias / 'config/terminals/waveterm/config', target_is_directory=True)
+        source = self.root / 'config/terminals/waveterm/config/settings.json'
+        original = source.read_bytes()
+        (source.parent / 'device-state.txt').write_text('preserve application state\n')
+        workflow.check_existing('linux')
+        self.assertIn('cp -pRL', self.install('--dry-run').stdout)
+        self.install()
+        self.assertFalse(directory.is_symlink())
+        self.assertFalse(source.is_symlink())
+        self.assertEqual(source.read_bytes(), original)
+        self.assertEqual((directory / 'device-state.txt').read_text(), 'preserve application state\n')
+
+    def test_moved_checkout_with_retired_marker_via_parent_alias(self):
+        self.install()
+        alias = self.base / 'parent-alias'
+        alias.symlink_to(self.base, target_is_directory=True)
+        marker = self.home / '.config/dotfiles/profile'
+        marker.unlink()
+        marker.symlink_to(alias / 'checkout/setup/profiles/hep')
+        moved = self.base / 'moved checkout'
+        self.root.rename(moved)
+        for option in ('--check-existing', ''):
+            args = ['bash', str(moved / 'install.sh'), '--platform', 'linux']
+            if option:
+                args.append(option)
+            result = subprocess.run(args, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(marker.read_text(), 'personal\n')
+        self.assertEqual((self.home / '.bashrc').resolve(), moved / 'bash/.bashrc')
 
     def test_render_preserves_platform_preferences_and_detects_direct_edits(self):
         common = self.root / 'config/terminals/waveterm/settings.common.json'
