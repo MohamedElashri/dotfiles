@@ -201,6 +201,67 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((self.home/'.profile').resolve(), ROOT/'shell/.profile')
         self.assertFalse((self.home/'cli').is_symlink())
 
+    def test_recovery_manifest_is_read_only_and_covers_migrations(self):
+        config = self.home/'.config/dotfiles'
+        config.mkdir(parents=True)
+        legacy = config/'environment.local.zsh'
+        legacy.write_text('# keep local configuration\n')
+        result = self.install('--manifest')
+        raw = result.stdout.split('\0')
+        entries = dict(zip(raw[1:-1:2], raw[0:-1:2]))
+        self.assertEqual(entries[str(self.home/'.bashrc')], 'link')
+        self.assertEqual(entries[str(legacy)], 'change')
+        self.assertEqual(entries[str(config/'local.env.zsh')], 'change')
+        self.assertEqual(entries[str(self.home/'.ssh')], 'mode')
+        self.assertEqual(legacy.read_text(), '# keep local configuration\n')
+        self.assertFalse((self.home/'.bashrc').exists())
+        self.assertFalse((config/'local.env.zsh').exists())
+
+
+    def test_global_git_ignores_on_mac_and_linux(self):
+        repo = self.home/'unrelated repository'
+        repo.mkdir()
+        self.assertEqual(self.run_cmd('git', 'init', '-q', str(repo)).returncode, 0)
+        ignored = [
+            '.claude/settings.json', '.codex/config.toml',
+            'nested/.claude/worktrees/task/file.txt', 'nested/.codex/config.toml',
+            'nested/.cursor/rules/project.mdc', '.gemini/settings.json',
+            '.aider.chat.history.md', '.continue/config.yaml', '.mcp.json',
+            '.agents/skills/review/SKILL.md', '.agent/rules/style.md',
+            'AGENTS.md', 'nested/AGENTS.override.md', 'nested/CLAUDE.md',
+            'CLAUDE.local.md', 'GEMINI.md', 'opencode.jsonc',
+            '.github/copilot-instructions.md', 'nested/.github/agents/review.agent.md',
+            '.github/instructions/python.instructions.md', '.github/prompts/review.prompt.md',
+            '.github/skills/review/SKILL.md', '.github/chatmodes/review.chatmode.md',
+            '.vscode/mcp.json', 'nested/.DS_Store', 'nested/._photo.png',
+            '.Spotlight-V100/index', '.Trashes/entry', 'nested/Thumbs.db',
+            'Desktop.ini', 'nested/settings.swp', 'settings.swo', 'notes.txt~',
+        ]
+        visible = ['README.md', 'AGENTSmith.md', 'settings.json', '.vscode/settings.json',
+                   '.idea/project.xml', '.env.example', 'build/source.c',
+                   '.github/workflows/test.yml']
+        for name in ignored + visible:
+            target = repo/name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('fixture\n')
+        for platform in ('mac', 'linux'):
+            with self.subTest(platform=platform):
+                self.install('--platform', platform)
+                result = self.run_cmd('git', '-C', str(repo), 'ls-files', '--others', '--exclude-standard')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(set(result.stdout.splitlines()), set(visible))
+        # Tracked settings continue to be visible despite global exclusions.
+        result = self.run_cmd('git', '-C', str(repo), 'add', '-f', '.claude/settings.json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.run_cmd('git', '-C', str(repo), 'check-ignore', '.claude/settings.json')
+        self.assertEqual(result.returncode, 1, result.stderr)
+        # The local Git override is loaded last, including core.excludesFile.
+        local = self.home/'.config/dotfiles/local.gitconfig'
+        local.write_text('[core]\n excludesFile = ~/.config/custom-ignore\n')
+        result = self.run_cmd('git', 'config', '--get', 'core.excludesFile')
+        self.assertEqual(result.stdout.strip(), '~/.config/custom-ignore')
+
+
     def test_get_size_preserves_apparent_file_size(self):
         self.install()
         if sys.platform == 'darwin':
@@ -218,6 +279,15 @@ class InstallTests(unittest.TestCase):
         result = self.run_cmd('zsh', '-ic', 'get_size "$HOME/small file"')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), f"Size of '{small}': 512 B")
+        # Sparse files cover all unit branches without allocating large files.
+        for size, expected in [(2048, '2.00 KB'), (2 * 1024 ** 3, '2.00 GB')]:
+            with self.subTest(size=size):
+                with target.open('wb') as stream:
+                    stream.truncate(size)
+                result = self.run_cmd('zsh', '-ic', 'get_size "$HOME/sparse file"')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn('command not found', result.stderr)
+                self.assertEqual(result.stdout.strip(), f"Size of '{target}': {expected}")
 
     def test_bash_listing_shortcuts_are_preserved(self):
         self.install()
@@ -237,7 +307,7 @@ class InstallTests(unittest.TestCase):
         self.assertTrue((self.home/'.zshrc').is_symlink())
 
     def test_reinstall_after_checkout_moves(self):
-        for profile, platform in [('personal', 'linux'), ('retired', 'linux'), ('personal', 'mac')]:
+        for profile, platform in [('personal', 'linux'), ('retired', 'linux'), ('personal', 'mac'), ('minimal', 'linux'), ('minimal', 'mac')]:
             with self.subTest(previous_profile=profile, platform=platform):
                 original = self.home/f'original checkout {profile} {platform}'
                 moved = self.home/f'moved checkout {profile} {platform}'
@@ -245,7 +315,7 @@ class InstallTests(unittest.TestCase):
                 target_home.mkdir()
                 shutil.copytree(ROOT, original, ignore=shutil.ignore_patterns('.git', '.claude', '.cache', 'fonts', '__pycache__'))
                 env = dict(self.env, HOME=str(target_home), ZDOTDIR=str(target_home))
-                result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, env=env)
+                result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, '--profile', 'minimal' if profile == 'minimal' else 'personal', env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 if profile == 'retired':
                     marker = target_home/'.config/dotfiles/profile'
@@ -256,8 +326,8 @@ class InstallTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), 'personal')
-                expected_profile = moved/('config/mac/shell/.profile' if platform == 'mac' else 'shell/.profile')
+                self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), 'minimal' if profile == 'minimal' else 'personal')
+                expected_profile = moved/('config/mac/shell/.profile' if platform == 'mac' and profile != 'minimal' else 'shell/.profile')
                 self.assertEqual((target_home/'.profile').resolve(), expected_profile.resolve())
                 self.assertEqual((target_home/'.bashrc').resolve(), (moved/'bash/.bashrc').resolve())
                 self.assertFalse((target_home/'.config/dotfiles/site.bash').exists())

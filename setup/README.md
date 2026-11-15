@@ -1,5 +1,25 @@
 # Machine setup and sync ownership
 
+## Minimal machines
+
+For a VM or headless device, use `./install.sh --profile minimal`. It links Bash
+and terminal-only Git settings, without Zsh, SSH routes, GUI applications, or
+signing-agent requirements. The installer itself requires Bash; updates need
+Git and Python 3. On Debian/Ubuntu, install the essential list explicitly:
+
+```bash
+sudo apt-get update
+awk 'NF && $1 !~ /^#/ {print $0}' setup/minimal-linux-packages.txt | xargs sudo apt-get install -y
+./install.sh --profile minimal
+./bin/dotfiles doctor
+```
+
+`dotfiles update --check`, `dotfiles update`, and `dotfiles rollback` retain
+validated updates and recovery for both supported profiles. See
+[usage and recovery](../docs/usage.md). Profile selection is remembered when the
+checkout moves. Retired HEP profiles migrate to personal; standalone HEP setup
+is removed. Switching profiles preserves unrelated pre-existing files.
+
 ## Onboarding
 
 Install Git, Python 3.9+, Bash, and Homebrew using its official platform

@@ -1,0 +1,29 @@
+# Terminal-only defaults for fresh VMs and headless machines.
+[user]
+    name = MohamedElashri
+    email = git@elashri.com
+[init]
+    defaultBranch = main
+[core]
+    editor = vi
+    pager = less
+    excludesFile = ~/.config/dotfiles/git-ignore
+[commit]
+    gpgsign = false
+[fetch]
+    prune = true
+[pull]
+    ff = only
+[push]
+    default = simple
+[rebase]
+    autosquash = true
+[alias]
+    st = status
+    co = checkout
+    ci = commit
+    br = branch
+    lg = log --oneline --graph --decorate
+    root = rev-parse --show-toplevel
+[include]
+    path = ~/.config/dotfiles/local.gitconfig
