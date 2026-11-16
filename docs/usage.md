@@ -1,77 +1,114 @@
-# Usage and recovery
+# Portable agent guidance
 
-See the [README](../README.md) for installation and commands, and
-[machine setup](../setup/README.md) for workstation provisioning.
-HEP integrations are retired; AI tools and their settings are managed separately.
+The personal profile links a Codex global file and the same two skill directories
+into both Codex and Claude Code on Linux and macOS:
 
-## Local settings
-
-Keep machine-specific settings in `~/.config/dotfiles/`:
-
-| File | Purpose |
+| Repository source | Destination |
 |---|---|
-| `local.bash` | Bash overrides |
-| `local.zsh` | Zsh overrides |
-| `local.env.zsh` | Zsh environment, before tool initialization |
-| `local.gitconfig` | Git overrides |
+| `agent-workflow/global.md` | `~/.codex/AGENTS.md` |
+| `agent-workflow/skills/research-audit/` | `~/.agents/skills/research-audit/` |
+| `agent-workflow/skills/engineering-audit/` | `~/.agents/skills/engineering-audit/` |
+| `agent-workflow/skills/research-audit/` | `~/.claude/skills/research-audit/` |
+| `agent-workflow/skills/engineering-audit/` | `~/.claude/skills/engineering-audit/` |
 
-Copy the [examples](../templates/local/) you need. Keep credentials out of Git.
-Enable this checkout's commit/push checks with
-`git config --local core.hooksPath .githooks`.
+The Codex global guidance covers everyday evidence and verification habits;
+the installer preserves Claude's own `CLAUDE.md` and settings. Use the shared
+`research-audit` for consequential research claims and source checks, or
+`engineering-audit` for implementation audits:
 
-## Updates and recovery
+| Harness | Explicit invocation |
+|---|---|
+| Codex | `$research-audit`, `$engineering-audit` |
+| Claude Code | `/research-audit`, `/engineering-audit` |
 
-Updates require Bash, Git, Python 3, a clean checkout, an upstream branch, and
-intact managed links. Commit and push shared edits before updating other machines.
+These skills apply to
+explicit or clearly applicable audits, rather than every ordinary task.
+Audits are read-only unless the invoking task authorizes edits.
+
+## Preview and install
+
+From the checkout root:
 
 ```bash
-dotfiles update --check  # fetch and validate; leave live settings unchanged
-dotfiles update         # save recovery state and apply fast-forward changes
-dotfiles rollback       # undo the last successful update
+./install.sh --profile personal --dry-run
+./install.sh --profile personal --list
+./install.sh --profile personal --manifest
+./install.sh --profile personal
+./install.sh --profile personal --status
 ```
 
-Incoming settings are checked in a temporary home before application. Updates
-execute repository scripts; use trusted changes and close apps that rewrite
-settings, since symlink changes become live immediately.
+`--manifest` and `--list` print the same tab-separated source/target pairs.
+Preview and inspection commands do not create directories or change files.
+Only `personal` is supported; there is no `minimal` profile in this checkout.
 
-Failed installations attempt automatic recovery. Rollback stops if the checkout
-or managed files changed afterward. After an interruption or failed recovery,
-keep the printed recovery directory. Its `state.json` records the previous commit
-and backups for manual recovery. Snapshots live under `dotfiles-updates/` inside
-the checkout's Git directory and may contain private overrides; do not commit them.
-Installer replacement backups are separate, under `~/.dotfiles-backup/`.
+The global file and each harness's two named skill directories are managed separately,
+preserving unrelated skills and private application configuration. Skill
+manifests are regular `SKILL.md` files inside the linked directories: the tested
+Codex CLI skips manifest-file symlinks during discovery. Existing targets are moved to
+`~/.dotfiles-backup/<run>/<original-relative-path>` before replacement.
+Repeat installation leaves correct links and backups alone.
 
-## Troubleshooting
+A real skill directory containing only `SKILL.md` (or no files) can be backed up
+and replaced. If it contains other entries, including hidden files or dangling
+links, installation stops with `Unmanaged skill contents` before any configuration
+writes. Reconcile that content manually; it is never silently moved or hidden.
+Unreadable or unsearchable real skill directories also stop preflight with
+`Cannot inspect skill directory`, preventing a partial installation.
+Earlier managed manifest-file links migrate through the same backup mechanism
+when no sibling content is present. Sync still refuses unmanaged manifests.
 
-| Problem | Action |
-|---|---|
-| Missing tools or Git setup | Run `dotfiles doctor`; follow [machine setup](../setup/README.md). It checks offline and returns 1 for failures. |
-| Detached or missing links | Run `dotfiles status`, preserve wanted local edits in the checkout, then `dotfiles install`. |
-| Command unavailable or checkout moved | Run `./install.sh` from the checkout, then open a new shell. |
+Agent parent directories must be real, searchable directories. If `.codex`,
+`.agents`, `.agents/skills`, `.claude`, or `.claude/skills` is a symlink, an
+ordinary file, or an unsearchable directory, installation and
+diagnostics stop with `Blocked agent parent` before changing any configuration.
+List/manifest remain available. Reconcile the existing directory layout manually;
+the installer does not replace directory links or write through them into a
+shared skill store or another checkout.
 
-Reinstalling remembers your profile. Switching profiles leaves previous links
-in place; use a fresh home for a clean minimal setup.
+If `--status` reports a detached file, compare it with the reported source and
+preserve any desired edits before reinstalling. `--check-existing` and
+`dotfiles sync --check` refuse existing conflicts without replacing them.
+Missing targets are reported by status/doctor and recreated on install/sync.
+After moving the checkout, rerun its installer to repair links using the saved
+profile marker. Backups remain available for manual recovery; there is no
+automatic rollback command.
 
-## Shared configuration and assets
+## Ownership and discovery
 
-- CLI/editor preferences live in `config/cli/`, `config/editors/`, and `config/tmux/`.
-- Shell preferences and aliases live in `shell/`, `zsh/`, and `platform/`.
-- Waveterm preferences come from `settings.common.json` and its Linux/Mac overrides
-  under `config/terminals/waveterm/`. Run `dotfiles render` after editing them and
-  commit both the inputs and generated outputs. It also renders shell plugin choices.
-- `dotfiles bootstrap` provisions the curated workstation tools and shell/editor
-  assets. Existing assets are preserved; `dotfiles assets --update` applies pins.
-- `dotfiles sync` fast-forwards configuration, restores missing links, and reconciles
-  enabled shell/editor assets. Use `update` when you need pre-install validation
-  and a rollback journal. Sync does not create an update rollback point.
-- `dotfiles fonts --list` lists optional checksum-verified font downloads.
+These paths target the harnesses' default homes. A custom `CODEX_HOME` or an existing
+`~/.codex/AGENTS.override.md` can change which global instructions are loaded.
+A custom `CLAUDE_CONFIG_DIR` changes where Claude finds personal skills and
+requires manual review of these default links.
+Private provider settings, authentication, sessions, permissions, caches,
+local endpoints, and unrelated skills remain outside this repository.
+The installer does not install either harness or change account/model settings.
 
-## Global Git ignores
+For an optional discovery check with an already installed Codex, use a
+disposable HOME and repository. Install links into that home, then start a new
+Codex session and inspect its loaded instructions and skill list. Request each
+audit explicitly on harmless fixtures; try a small ordinary task to check that
+both skills are not forced into every interaction. Treat this as a separate
+runtime check: link tests alone do not establish model behavior. Such sessions
+can require credentials and network and incur usage; do not put them in CI.
+Never copy credentials into this checkout to run the check.
 
-Personal/minimal profiles use [config/git/ignore](../config/git/ignore) through
-`core.excludesFile`. It covers common AI settings, OS clutter, and editor leftovers
-at any depth. Tracked files remain tracked; repository rules can override defaults.
+For Claude Code, start a new local session and inspect the `/` command menu for
+both audit names. Its SDK initialization metadata can also list commands without
+sending a user/model prompt; a successful listing verifies discovery, not audit
+quality or automatic selection. Use a disposable home for these checks.
 
-Inspect a rule with `git check-ignore -v --no-index .claude/settings.json`.
-Use `git add -f` for an intentional exception, or override `core.excludesFile`
-in `local.gitconfig` for a different machine-wide list.
+The [official instruction guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+and [skill guide](https://learn.chatgpt.com/docs/build-skills) describe discovery
+and frontmatter. Claude's [skill guide](https://code.claude.com/docs/en/skills)
+documents its personal skill directories, directory links, and slash commands.
+Other harnesses are outside the current installer scope. Local instructions do
+not update ChatGPT web personalization, sync web chats, or upload skills to
+Claude account, Cowork, or cloud sessions.
+
+## Git ignore migration
+
+The managed global ignore allows project `AGENTS.md` and `.agents/skills/` so
+teams can deliberately version their guidance. `.codex/`, `AGENTS.override.md`,
+and credential patterns stay ignored. Other repositories may expose previously
+hidden instruction files as untracked: inspect their contents and ownership
+before adding them. The installer never stages or commits files in any repository.

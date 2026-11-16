@@ -35,6 +35,9 @@ config/mac/ssh/config.local
 # Python verification artifacts
 __pycache__/
 
+# Private implementation ledger
+/plan.md
+
 # Machine-local agent permissions
 .claude/settings.local.json
 

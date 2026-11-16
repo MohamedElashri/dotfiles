@@ -23,5 +23,6 @@
   "window:magnifiedblockblurprimarypx": 10,
   "window:magnifiedblockblursecondarypx": 2,
   "web:defaulturl": "https://github.com",
-  "web:defaultsearch": "https://www.google.com/search?q={query}"
+  "web:defaultsearch": "https://www.google.com/search?q={query}",
+  "window:disablehardwareacceleration": true
 }

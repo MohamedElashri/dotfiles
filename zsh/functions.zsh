@@ -137,13 +137,13 @@ get_size() {
   if [[ $size -lt 1024 ]]; then
     echo "Size of '$target': $size B"
   elif [[ $size -lt 1048576 ]]; then
-    size_kb=$(awk -v size="$size" 'BEGIN {printf "%.2f", size / 1024}')
+    size_kb=$(awk "BEGIN {printf \"%.2f\", $size / 1024}")
     echo "Size of '$target': $size_kb KB"
   elif [[ $size -ge 1073741824 ]]; then
-    size_gb=$(awk -v size="$size" 'BEGIN {printf "%.2f", size / 1073741824}')
+    size_gb=$(bc <<< "scale=2; $size / 1073741824")
     echo "Size of '$target': $size_gb GB"
   else
-    size_mb=$(awk -v size="$size" 'BEGIN {printf "%.2f", size / 1048576}')
+    size_mb=$(bc <<< "scale=2; $size / 1048576")
     echo "Size of '$target': $size_mb MB"
   fi
 }
@@ -413,6 +413,241 @@ ii() {
   echo
 }
 
+
+unalias temps 2>/dev/null
+
+temps() {
+    local readings color=0
+
+    # Enable colors only in interactive terminals.
+    if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] &&
+       [ "${TERM:-dumb}" != "dumb" ]; then
+        color=1
+    fi
+
+    case "$(uname -s)" in
+        Linux)
+            if ! command -v sensors >/dev/null 2>&1; then
+                echo "Install lm-sensors first."
+                return 1
+            fi
+
+            readings=$(LC_ALL=C sensors | LC_ALL=C awk '
+                /^[^ \t][^:]*$/ {
+                    chip = $0
+                    next
+                }
+
+                /:[ \t]*[+-]?[0-9]+([.][0-9]+)?/ {
+                    if ($0 !~ /C/) next
+
+                    label = $0
+                    sub(/:.*/, "", label)
+                    gsub(/^[ \t]+|[ \t]+$/, "", label)
+
+                    value = $0
+                    sub(/^[^:]*:[ \t]*/, "", value)
+                    sub(/[^0-9.+-].*$/, "", value)
+
+                    if (value !~ /^[+-]?[0-9]+([.][0-9]+)?$/)
+                        next
+
+                    c = tolower(chip)
+                    rank = 0
+
+                    if (c ~ /^(k10temp|zenpower)/) {
+                        key = "CPU"
+                        if (label == "Tctl") rank = 100
+                        else if (label == "Tdie") rank = 90
+                        else if (label == "temp1") rank = 10
+                    }
+                    else if (c ~ /^coretemp/) {
+                        key = "CPU"
+                        if (label ~ /^Package id/) rank = 100
+                        else if (label ~ /^Core [0-9]+$/) rank = 50
+                        else if (label == "temp1") rank = 10
+                    }
+                    else if (c ~ /^(amdgpu|nouveau|i915)/) {
+                        key = "GPU"
+                        if (label == "edge") rank = 100
+                        else if (label == "temp1") rank = 50
+                    }
+                    else if (c ~ /^nvme/) {
+                        key = "NVME:" c
+                        if (label == "Composite") rank = 100
+                        else if (label == "temp1") rank = 50
+
+                        if (!(key in seen)) {
+                            nvme_keys[++nvme_count] = key
+                            seen[key] = 1
+                        }
+                    }
+                    else if (c ~ /^(mt[0-9]|iwlwifi|ath[0-9])/) {
+                        key = "Wi-Fi"
+                        if (label == "temp1") rank = 100
+                    }
+                    else if (c ~ /^(r8169|igc|e1000e)/) {
+                        key = "Ethernet"
+                        if (label == "temp1") rank = 100
+                    }
+                    else next
+
+                    if (rank > 0 &&
+                        (!(key in values) || rank > ranks[key])) {
+                        values[key] = value
+                        labels[key] = label
+                        ranks[key] = rank
+                    }
+                }
+
+                END {
+                    if ("CPU" in values)
+                        printf "CPU\t%s\t%s\n",
+                               labels["CPU"], values["CPU"]
+
+                    if ("GPU" in values)
+                        printf "GPU\t%s\t%s\n",
+                               labels["GPU"], values["GPU"]
+
+                    for (i = 1; i <= nvme_count; i++) {
+                        key = nvme_keys[i]
+                        if (!(key in values)) continue
+
+                        name = "NVMe SSD"
+                        if (nvme_count > 1)
+                            name = name " " i
+
+                        printf "%s\t%s\t%s\n",
+                               name, labels[key], values[key]
+                    }
+
+                    if ("Wi-Fi" in values)
+                        printf "Wi-Fi\t%s\t%s\n",
+                               labels["Wi-Fi"], values["Wi-Fi"]
+
+                    if ("Ethernet" in values)
+                        printf "Ethernet\t%s\t%s\n",
+                               labels["Ethernet"], values["Ethernet"]
+                }
+            ') || return 1
+            ;;
+
+        Darwin)
+            if [ "$(uname -m)" = "arm64" ]; then
+                if ! command -v macmon >/dev/null 2>&1 ||
+                   ! command -v jq >/dev/null 2>&1; then
+                    echo "Install: brew install macmon jq"
+                    return 1
+                fi
+
+                readings=$(macmon pipe -s 1 | jq -r '
+                    .temp |
+                    (["CPU", "average", .cpu_temp_avg],
+                     ["GPU", "average", .gpu_temp_avg]) |
+                    select(.[2] | type == "number") |
+                    @tsv
+                ') || return 1
+            else
+                if ! command -v osx-cpu-temp >/dev/null 2>&1; then
+                    echo "Install: brew install osx-cpu-temp"
+                    return 1
+                fi
+
+                readings=$(
+                    for device in CPU GPU; do
+                        case "$device" in
+                            CPU) flag="-c" ;;
+                            GPU) flag="-g" ;;
+                        esac
+
+                        value=$(osx-cpu-temp "$flag" -T 2>/dev/null) ||
+                            continue
+
+                        printf '%s\t%s\t%s\n' \
+                            "$device" "sensor" "$value"
+                    done
+                )
+            fi
+            ;;
+
+        *)
+            echo "Unsupported operating system."
+            return 1
+            ;;
+    esac
+
+    if [ -z "$readings" ]; then
+        echo "No supported temperature sensors found."
+        return 1
+    fi
+
+    # Shared formatter and configurable thresholds.
+    printf '%s\n' "$readings" | LC_ALL=C awk -F '\t' \
+        -v color="$color" \
+        -v cpu_w="${TEMPS_CPU_WARN:-75}" \
+        -v cpu_h="${TEMPS_CPU_HOT:-85}" \
+        -v gpu_w="${TEMPS_GPU_WARN:-70}" \
+        -v gpu_h="${TEMPS_GPU_HOT:-85}" \
+        -v nvme_w="${TEMPS_NVME_WARN:-60}" \
+        -v nvme_h="${TEMPS_NVME_HOT:-70}" \
+        -v wifi_w="${TEMPS_WIFI_WARN:-65}" \
+        -v wifi_h="${TEMPS_WIFI_HOT:-80}" \
+        -v eth_w="${TEMPS_ETH_WARN:-65}" \
+        -v eth_h="${TEMPS_ETH_HOT:-80}" '
+        BEGIN {
+            esc = sprintf("%c", 27)
+            green = esc "[32m"
+            yellow = esc "[33m"
+            red = esc "[31m"
+            reset = esc "[0m"
+        }
+
+        NF >= 3 {
+            device = $1
+            label = $2
+            temp = $3 + 0
+
+            if (temp <= 0) next
+
+            if (device == "CPU") {
+                warn = cpu_w; hot = cpu_h
+            }
+            else if (device == "GPU") {
+                warn = gpu_w; hot = gpu_h
+            }
+            else if (device ~ /^NVMe SSD/) {
+                warn = nvme_w; hot = nvme_h
+            }
+            else if (device == "Wi-Fi") {
+                warn = wifi_w; hot = wifi_h
+            }
+            else if (device == "Ethernet") {
+                warn = eth_w; hot = eth_h
+            }
+            else next
+
+            if (temp >= hot) {
+                status = "HOT"
+                shade = red
+            }
+            else if (temp >= warn) {
+                status = "WARM"
+                shade = yellow
+            }
+            else {
+                status = "OK"
+                shade = green
+            }
+
+            if (color)
+                printf "  %-14s %-12s : %s%5.1f C  %-4s%s\n",
+                       device, label, shade, temp, status, reset
+            else
+                printf "  %-14s %-12s : %5.1f C  %s\n",
+                       device, label, temp, status
+        }
+    '
+}
 
 # Deliberately silly terminal tricks.
 

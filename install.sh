@@ -5,7 +5,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 : "${HOME:?HOME must be set}"
 PROFILE=personal
 physical_path() {
-  local candidate=$1 suffix='' parent directory normalized
+  local candidate=$1 suffix= parent directory normalized
   # Resolve existing ancestors even when a moved checkout's leaf no longer
   # exists. macOS aliases /var through /private/var, including temporary homes.
   while [ ! -d "$candidate" ]; do
@@ -31,45 +31,36 @@ profile_link=$(link_reference "$HOME/.config/dotfiles/profile" || true)
 case "$profile_link" in
   /*/setup/profiles/*)
     PREVIOUS_ROOT=${profile_link%/setup/profiles/*}
-    case "${profile_link##*/}" in personal|minimal) PROFILE=${profile_link##*/} ;; esac
     ;;
-  /*/hep/profile) PREVIOUS_ROOT=${profile_link%/hep/profile} ;;
 esac
-saved_profile=
-if [ -r "$HOME/.config/dotfiles/profile" ]; then
-  IFS= read -r saved_profile < "$HOME/.config/dotfiles/profile" || true
-  case "$saved_profile" in personal|minimal) PROFILE=$saved_profile ;; esac
-fi
 OS=$(uname -s)
 DRY_RUN=0
 STATUS=0
 LIST=0
-MANIFEST=0
 CHECK_EXISTING=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal or minimal' >&2; exit 2; }; PROFILE=$2; shift ;;
+    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal' >&2; exit 2; }; PROFILE=$2; shift ;;
     --platform) [ "$#" -ge 2 ] || exit 2; case "$2" in linux) OS=Linux ;; mac) OS=Darwin ;; *) echo 'Use --platform linux|mac' >&2; exit 2 ;; esac; shift ;;
     --dry-run|-n) DRY_RUN=1 ;;
     --status) STATUS=1 ;;
-    --list) LIST=1 ;;
-    --manifest) MANIFEST=1 ;;
+    --list|--manifest) LIST=1 ;;
     --check-existing) CHECK_EXISTING=1 ;;
-    --help|-h) echo 'Usage: ./install.sh [--profile personal|minimal] [--platform linux|mac] [--dry-run|--status|--list|--check-existing|--manifest]'; exit 0 ;;
+    --help|-h) echo 'Usage: ./install.sh [--profile personal] [--platform linux|mac] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
-case "$PROFILE" in personal|minimal) ;; *) echo 'Invalid profile; use personal or minimal' >&2; exit 2 ;; esac
+case "$PROFILE" in personal) ;; *) echo 'Invalid profile; only personal is supported' >&2; exit 2 ;; esac
 case "$OS" in Linux|Darwin) ;; *) echo "Unsupported OS: $OS" >&2; exit 2 ;; esac
 BACKUP="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)-$$"
 sources=(); targets=()
 add() { sources+=("$ROOT/$1"); targets+=("$HOME/$2"); }
-add "setup/profiles/$PROFILE" .config/dotfiles/profile
+add setup/profiles/personal .config/dotfiles/profile
 add bash/.bashrc .bashrc
 # Preserve existing login files; relocate only links owned by this installer.
 profile_source=shell/.profile
-if [ "$OS" = Darwin ] && [ "$PROFILE" = personal ]; then profile_source=config/mac/shell/.profile; fi
+[ "$OS" != Darwin ] || profile_source=config/mac/shell/.profile
 if [ ! -e "$HOME/.profile" ] && [ ! -L "$HOME/.profile" ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
   add "$profile_source" .profile
 elif [ -L "$HOME/.profile" ]; then
@@ -77,16 +68,18 @@ elif [ -L "$HOME/.profile" ]; then
     "$ROOT/sh/.profile"|"$ROOT/shell/.profile"|"$ROOT/config/mac/shell/.profile"|"$PREVIOUS_ROOT/sh/.profile"|"$PREVIOUS_ROOT/shell/.profile"|"$PREVIOUS_ROOT/config/mac/shell/.profile") add "$profile_source" .profile ;;
   esac
 fi
-if [ "$PROFILE" = minimal ]; then
-  add config/git/minimal.gitconfig .gitconfig
-  add config/git/ignore .config/dotfiles/git-ignore
-else
 add zsh/.zshenv .zshenv
 add zsh/.zprofile .zprofile
 add zsh/.zshrc .zshrc
 add config/git/.gitconfig .gitconfig
 add config/git/.stCommitMsg .stCommitMsg
 add config/git/ignore .config/dotfiles/git-ignore
+# Share portable skill sources without managing either harness's private state.
+add agent-workflow/global.md .codex/AGENTS.md
+for skill in research-audit engineering-audit; do
+  add "agent-workflow/skills/$skill" ".agents/skills/$skill"
+  add "agent-workflow/skills/$skill" ".claude/skills/$skill"
+done
 add config/tmux/.tmux.conf .tmux.conf
 add config/editors/zed/settings.json .config/zed/settings.json
 add config/terminals/ghostty/config .config/ghostty/config
@@ -121,50 +114,55 @@ else
   done
   add config/git/linux.gitconfig .config/dotfiles/git-platform
 fi
-fi
 # Validate all sources before making any changes.
-for src in "${sources[@]}"; do [ -e "$src" ] || { echo "Missing source: $src" >&2; exit 1; }; done
+for src in "${sources[@]}"; do
+  [ -e "$src" ] || { echo "Missing source: $src" >&2; exit 1; }
+  case "$src" in
+    "$ROOT/agent-workflow/skills/"*)
+      if [ ! -f "$src/SKILL.md" ] || [ -L "$src/SKILL.md" ]; then
+        echo "Skill source must contain a regular manifest: $src/SKILL.md" >&2
+        exit 1
+      fi ;;
+  esac
+done
 if [ "$LIST" = 1 ]; then
   for ((i=0; i<${#sources[@]}; i++)); do printf '%s\t%s\n' "${sources[i]}" "${targets[i]}"; done
   exit 0
 fi
-if [ "$MANIFEST" = 1 ]; then
-  for dest in "${targets[@]}"; do printf 'link\0%s\0' "$dest"; done
-  printf 'change\0%s\0' "$HOME/.config/dotfiles/site.bash"
-  if [ "$PROFILE" = personal ]; then
-    for group in env zsh; do
-      if [ "$group" = env ]; then
-        old_names=(.config/dotfiles/environment.local.zsh .environment.local.zsh)
-        current_name=.config/dotfiles/local.env.zsh
-      else
-        old_names=(.config/dotfiles/zshrc.local.zsh .dotfiles.local.zsh)
-        current_name=.config/dotfiles/local.zsh
-      fi
-      found=0
-      for name in "${old_names[@]}"; do [ ! -f "$HOME/$name" ] || found=1; done
-      if [ "$found" = 1 ]; then
-        for name in "${old_names[@]}" "$current_name"; do printf 'change\0%s\0' "$HOME/$name"; done
-      fi
-    done
-    for name in aliases functions environment config plugins tricks m_nvim; do
-      dest="$HOME/$name.zsh"
-      if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name.zsh" ]; then printf 'change\0%s\0' "$dest"; fi
-    done
-    for name in core aliases functions integrations; do
-      dest="$HOME/.config/dotfiles/zsh/$name"
-      if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name" ]; then printf 'change\0%s\0' "$dest"; fi
-    done
-    if [ -L "$HOME/cli" ] && [ "$(readlink "$HOME/cli")" = "$ROOT/cli" ]; then printf 'change\0%s\0' "$HOME/cli"; fi
-    for relative in .waveterm/config .config/ghostty; do
-      dest="$HOME/$relative"
-      if [ -L "$dest" ]; then
-        case "$(link_reference "$dest" || true)" in "$ROOT/"*|"$PREVIOUS_ROOT/"*) printf 'change\0%s\0' "$dest" ;; esac
-      fi
-    done
-    printf 'mode\0%s\0' "$HOME/.ssh"
-  fi
-  exit 0
-fi
+# Agent parent links can redirect a leaf replacement into another checkout or
+# shared skill store. Refuse before any installation/migration writes occur.
+for ((i=0; i<${#sources[@]}; i++)); do
+  case "${sources[i]}" in "$ROOT/agent-workflow/"*) ;; *) continue ;; esac
+  parent=${targets[i]%/*}
+  while [ "$parent" != "$HOME" ]; do
+    if [ -L "$parent" ] || { [ -e "$parent" ] && [ ! -d "$parent" ]; }; then
+      printf 'Blocked agent parent: %s (reconcile symlinks or non-directories manually)\n' "$parent" >&2
+      exit 1
+    fi
+    if [ -d "$parent" ] && [ ! -x "$parent" ]; then
+      printf 'Blocked agent parent: %s (directory is not searchable)\n' "$parent" >&2
+      exit 1
+    fi
+    parent=${parent%/*}
+  done
+  case "${sources[i]}" in
+    "$ROOT/agent-workflow/skills/"*)
+      dest=${targets[i]}
+      if [ -d "$dest" ] && [ ! -L "$dest" ]; then
+        if [ ! -r "$dest" ] || [ ! -x "$dest" ]; then
+          printf 'Cannot inspect skill directory: %s (read and search access required)\n' "$dest" >&2
+          exit 1
+        fi
+        # A directory replacement must not hide user-owned sibling content.
+        for entry in "$dest"/* "$dest"/.[!.]* "$dest"/..?*; do
+          [ -e "$entry" ] || [ -L "$entry" ] || continue
+          if [ "$entry" = "$dest/SKILL.md" ] && [ ! -d "$entry" ]; then continue; fi
+          printf 'Unmanaged skill contents: %s (reconcile before replacing the skill directory)\n' "$entry" >&2
+          exit 1
+        done
+      fi ;;
+  esac
+done
 if [ "$CHECK_EXISTING" = 1 ]; then
   canonical_path() {
     local candidate=$1 directory next hops=0
@@ -192,9 +190,19 @@ if [ "$CHECK_EXISTING" = 1 ]; then
       elif [ -f "$dest" ]; then
         saved_profile=
         IFS= read -r saved_profile < "$dest" || true
-        case "$saved_profile" in personal|minimal|hep) continue ;; esac
+        case "$saved_profile" in personal|hep) continue ;; esac
       fi
     fi
+    # Migrate the earlier manifest-file links only when no sibling content
+    # would be displaced (validated above). Unmanaged manifests still conflict.
+    case "$src" in
+      "$ROOT/agent-workflow/skills/"*)
+        if [ -d "$dest" ] && [ ! -L "$dest" ] && [ -L "$dest/SKILL.md" ]; then
+          actual=$(canonical_path "$dest/SKILL.md" || true)
+          expected=$(canonical_path "$src/SKILL.md" || true)
+          if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then continue; fi
+        fi ;;
+    esac
     managed=0
     actual=$(canonical_path "$dest" || true)
     expected=$(canonical_path "$src" || true)
@@ -252,7 +260,6 @@ if [ "$OS" != Darwin ] && [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$R
 fi
 # Replace legacy whole-directory links with real directories and file links.
 # Copy their contents first so application-owned files survive the migration.
-if [ "$PROFILE" = personal ]; then
 for relative in .waveterm/config .config/ghostty; do
   dest="$HOME/$relative"
   if [ -L "$dest" ]; then
@@ -269,7 +276,6 @@ for relative in .waveterm/config .config/ghostty; do
     esac
   fi
 done
-fi
 # Consolidate old local override names, keeping the current override last.
 # Copies are backed up before removal; dry-run performs no reads of their contents.
 migrate_overrides() {

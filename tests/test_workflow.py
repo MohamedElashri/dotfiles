@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -201,9 +202,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.git('status', '--porcelain'), '')
         self.assertEqual(self.git('rev-parse', 'HEAD'), head)
         self.assertIn('brew install', output.getvalue())
-        self.assertNotIn('claude', output.getvalue())
-        self.assertNotIn('codex', output.getvalue())
-        self.assertNotIn('opencode', output.getvalue())
+        # Portable instruction paths are expected; AI application packages are not.
+        package_commands = [shlex.split(line.removeprefix('Would run: '))
+                            for line in output.getvalue().splitlines()
+                            if line.startswith('Would run: brew install ')]
+        self.assertTrue(package_commands)
+        for command in package_commands:
+            self.assertTrue({'claude', 'codex', 'opencode'}.isdisjoint(command[2:]))
         self.assertIn('Would download and verify meslo', output.getvalue())
 
     def test_invalid_platform_option_fails_before_packages_change(self):
@@ -238,11 +243,18 @@ class WorkflowTests(unittest.TestCase):
         peer = self.configure_remote()
         self.install()
         (self.home / '.config/gh/config.yml').unlink()
+        agent_targets = ['.codex/AGENTS.md', '.agents/skills/research-audit',
+                         '.agents/skills/engineering-audit', '.claude/skills/research-audit',
+                         '.claude/skills/engineering-audit']
+        for target in agent_targets:
+            (self.home / target).unlink()
         self.advance_remote(peer)
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(workflow.sync(self.sync_args()), 0)
         self.assertEqual(self.git('rev-parse', 'HEAD'), self.git('rev-parse', 'HEAD', cwd=peer))
         self.assertTrue((self.home / '.config/gh/config.yml').is_symlink())
+        for target in agent_targets:
+            self.assertTrue((self.home / target).is_symlink())
         self.assertIn('alias synced=', (self.home / '.bashrc').resolve().parent.parent.joinpath('shell/aliases.sh').read_text())
         self.install('--status')
         self.assertEqual(self.git('status', '--porcelain'), '')
@@ -292,6 +304,39 @@ class WorkflowTests(unittest.TestCase):
             workflow.check_existing('linux')
         self.assertEqual(target.readlink(), unrelated)
 
+    def test_sync_preserves_replaced_agent_instructions_before_fetch(self):
+        peer = self.configure_remote()
+        self.install()
+        target = self.home / '.codex/AGENTS.md'
+        target.unlink()
+        target.write_text('Device-owned instructions\n')
+        old_remote = self.git('rev-parse', 'origin/main')
+        self.advance_remote(peer)
+        with self.assertRaisesRegex(RuntimeError, 'Existing files need review'):
+            workflow.sync(self.sync_args())
+        self.assertEqual(target.read_text(), 'Device-owned instructions\n')
+        self.assertEqual(self.git('rev-parse', 'origin/main'), old_remote)
+        self.assertFalse((self.home / '.dotfiles-backup').exists())
+
+    def test_sync_refuses_symlinked_agent_parent_before_fetch(self):
+        peer = self.configure_remote()
+        self.install()
+        parent = self.home / '.agents/skills'
+        external = self.base / 'shared skills'
+        shutil.move(str(parent), external)
+        parent.symlink_to(external, target_is_directory=True)
+        source = self.root / 'agent-workflow/skills/research-audit/SKILL.md'
+        original = source.read_bytes()
+        old_remote = self.git('rev-parse', 'origin/main')
+        self.advance_remote(peer)
+        with self.assertRaisesRegex(RuntimeError, 'Blocked agent parent'):
+            workflow.sync(self.sync_args())
+        self.assertEqual(self.git('rev-parse', 'origin/main'), old_remote)
+        self.assertEqual(source.read_bytes(), original)
+        self.assertTrue(parent.is_symlink())
+        self.assertEqual((external / 'research-audit/SKILL.md').read_bytes(), original)
+        self.assertFalse((self.home / '.dotfiles-backup').exists())
+
     def test_sync_accepts_the_previous_mac_config_locations(self):
         self.install()
         target = self.home / '.config/gh/config.yml'
@@ -329,6 +374,25 @@ class WorkflowTests(unittest.TestCase):
         result = self.install('--list')
         self.assertIn(str(self.root / 'config/cli/gh/config.yml'), result.stdout)
         self.assertEqual(list(self.home.iterdir()), [])
+
+    def test_invalid_skill_manifests_stop_installation_before_writes(self):
+        source = self.root / 'agent-workflow/skills/research-audit/SKILL.md'
+        original = source.read_bytes()
+        for kind in ('missing', 'symlink'):
+            with self.subTest(kind=kind):
+                source.unlink()
+                if kind == 'symlink':
+                    fixture = self.base / 'regular-skill.md'
+                    fixture.write_bytes(original)
+                    source.symlink_to(fixture)
+                result = subprocess.run(['bash', str(self.root / 'install.sh'), '--platform', 'linux'],
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn('Skill source must contain a regular manifest', result.stderr)
+                self.assertEqual(list(self.home.iterdir()), [])
+                if source.is_symlink():
+                    source.unlink()
+                source.write_bytes(original)
 
     def test_installer_preserves_external_assistant_configuration(self):
         external = ['.claude/settings.json', '.codex/config.toml', '.config/opencode/opencode.json',
@@ -385,6 +449,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_doctor_reports_missing_tools_without_reading_external_settings(self):
         self.install()
+        (self.home / '.agents/skills/engineering-audit').unlink()
         state = self.home / '.claude/plugins/installed_plugins.json'
         state.parent.mkdir(parents=True)
         state.write_text('External state is deliberately not JSON: DO_NOT_DISPLAY_TEST_VALUE')
@@ -395,6 +460,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('Missing tool: rg', output.getvalue())
         self.assertNotIn('Missing tool: neovim', output.getvalue())
         self.assertNotIn('DO_NOT_DISPLAY_TEST_VALUE', output.getvalue())
+        self.assertIn('Missing: ' + str(self.home / '.agents/skills/engineering-audit'), output.getvalue())
 
     def font_archive(self, entries):
         archive = self.base / 'fonts.zip'

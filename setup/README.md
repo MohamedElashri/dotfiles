@@ -1,25 +1,5 @@
 # Machine setup and sync ownership
 
-## Minimal machines
-
-For a VM or headless device, use `./install.sh --profile minimal`. It links Bash
-and terminal-only Git settings, without Zsh, SSH routes, GUI applications, or
-signing-agent requirements. The installer itself requires Bash; updates need
-Git and Python 3. On Debian/Ubuntu, install the essential list explicitly:
-
-```bash
-sudo apt-get update
-awk 'NF && $1 !~ /^#/ {print $0}' setup/minimal-linux-packages.txt | xargs sudo apt-get install -y
-./install.sh --profile minimal
-./bin/dotfiles doctor
-```
-
-`dotfiles update --check`, `dotfiles update`, and `dotfiles rollback` retain
-validated updates and recovery for both supported profiles. See
-[usage and recovery](../docs/usage.md). Profile selection is remembered when the
-checkout moves. Retired HEP profiles migrate to personal; standalone HEP setup
-is removed. Switching profiles preserves unrelated pre-existing files.
-
 ## Onboarding
 
 Install Git, Python 3.9+, Bash, and Homebrew using its official platform
@@ -98,9 +78,46 @@ Pinned font checksums come from the [Nerd Fonts release](https://github.com/ryan
 
 ## Existing devices and migration
 
-AI tools, settings, plugins, and skills are outside this installer. Earlier
-copies collected in this checkout are preserved only in the ignored
-`.cache/excluded-ai/`; installed tools and local assistant files are unchanged.
+AI application installation, provider settings, credentials, plugins, and
+unrelated skills remain outside this installer. Earlier application settings
+collected in this checkout are preserved only in ignored `.cache/excluded-ai/`.
+The personal profile manages a Codex global file and two shared skill sources,
+linked into both Codex and Claude Code:
+
+| Repository source | Installed link |
+|---|---|
+| `agent-workflow/global.md` | `~/.codex/AGENTS.md` |
+| `agent-workflow/skills/research-audit/` | `~/.agents/skills/research-audit/` |
+| `agent-workflow/skills/engineering-audit/` | `~/.agents/skills/engineering-audit/` |
+| `agent-workflow/skills/research-audit/` | `~/.claude/skills/research-audit/` |
+| `agent-workflow/skills/engineering-audit/` | `~/.claude/skills/engineering-audit/` |
+
+The global file is linked individually; only the two named skill directories
+are linked in each harness, keeping their `SKILL.md` files regular for discovery. Existing
+targets are backed up under `~/.dotfiles-backup/` before replacement; a real
+skill directory with extra files or insufficient read/search access blocks
+replacement before any configuration writes. `~/.codex/config.toml`,
+`~/.claude/settings.json`, `~/.claude/CLAUDE.md`, auth, plugins,
+sessions, permission state, and unrelated skills stay local. Review existing
+instructions before reinstalling. Sync refuses detached target files until you
+reconcile them; it recreates missing links. Only `personal` is supported.
+Symlinked, non-directory, or unsearchable agent parents (`.codex`, `.agents`,
+`.agents/skills`, `.claude`, `.claude/skills`)
+block installation and sync before any configuration writes; reconcile those
+layouts manually. The installer never replaces those parent directories.
+Earlier managed `SKILL.md` file links migrate to named-directory links when
+there are no sibling files; unmanaged manifests still require review before sync.
+
+The global Git ignore allows project `AGENTS.md` and `.agents/skills/`, while
+keeping `.codex/`, `AGENTS.override.md`, and credential files ignored. Inspect
+newly visible untracked instructions in other repositories before adding them;
+the installer never stages or commits them.
+
+See [usage](../docs/usage.md) for previews and an optional Codex discovery check.
+The links target the default homes; custom `CODEX_HOME` or `CLAUDE_CONFIG_DIR`
+settings need manual review. They do not configure ChatGPT web personalization,
+sync web chats, or upload Claude account skills. Other harnesses are outside
+this installer's current scope.
 
 Preview `./install.sh --dry-run` before adopting the expanded shared app links.
 The installer backs up replaced files. Review existing Linux Atuin, GitHub CLI,
@@ -135,7 +152,8 @@ Git history has not been rewritten.
 | SSH routes | Repository configuration on Linux; `~/.ssh/config.local` on Mac |
 | Karabiner, Vicinae, Rio, Warp, Hyper, Nano, Powerlevel10k preferences | Existing Mac configuration |
 | VS Code | Its own Settings Sync |
-| AI tools, settings, plugins, and skills | Managed separately; outside dotfiles |
+| Codex global guidance and shared Codex/Claude Code audit skills | `agent-workflow/`, linked by the personal installer |
+| AI apps, private provider/runtime settings, plugins, other skills | Managed separately; outside dotfiles |
 | Shell history | Atuin account sync; keys and sessions stay local |
 | SSH private keys, credentials, auth/permission databases | Local secure storage and account setup |
 | Device-only overrides | `~/.config/dotfiles/local.*` |

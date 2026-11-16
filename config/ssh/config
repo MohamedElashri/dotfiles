@@ -9,8 +9,8 @@ Host dimna
 
 Host kalila
     User ubuntu
-    HostName 132.145.174.25
-    Port 239
+    HostName 150.136.84.214
+    Port 22
 
 Host labid
     User ubuntu

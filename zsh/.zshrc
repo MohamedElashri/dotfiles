@@ -52,3 +52,6 @@ if [[ -t 1 && "$RUN_QURAN_VERSE_ON_STARTUP" == true && -x "$DOTFILES_ROOT/bin/te
   "$DOTFILES_ROOT/bin/terminal_quran.sh"
 fi
 return 0
+
+# Added by txm
+fpath+=~/.zfunc

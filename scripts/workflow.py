@@ -424,8 +424,7 @@ def fonts(args):
 
 
 def parser():
-    result = argparse.ArgumentParser(prog='dotfiles', description=__doc__,
-                                     epilog='Also available: install, status, update [--check], rollback. See docs/usage.md.')
+    result = argparse.ArgumentParser(prog='dotfiles', description=__doc__)
     commands = result.add_subparsers(dest='command', required=True)
     for name in ('bootstrap', 'doctor', 'sync', 'assets', 'fonts'):
         command = commands.add_parser(name)
