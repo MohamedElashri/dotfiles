@@ -6,7 +6,8 @@ keep it in place.
 
 ## Setup
 
-Install Git, Bash, Python 3.9+, and [Homebrew](https://brew.sh), then:
+Clone this repository (or unpack the [ZIP download](https://github.com/MohamedElashri/dotfiles/archive/refs/heads/main.zip)),
+then run as your normal user:
 
 ```bash
 git clone --filter=blob:none --depth=1 https://github.com/MohamedElashri/dotfiles.git ~/projects/dotfiles
@@ -15,10 +16,26 @@ cd ~/projects/dotfiles
 ./bin/dotfiles bootstrap
 ```
 
-Bootstrap installs packages and pinned shell/editor assets, links configuration,
-and enables Git hooks. Optional flags: `--dev`, `--apps` (macOS), `--fonts meslo`,
-`--skip-packages`, and `--skip-assets`. See `./bin/dotfiles bootstrap --help`.
-Set up 1Password, GitHub, and Atuin accounts separately, then open a new shell.
+Bootstrap installs system prerequisites, [Homebrew](https://docs.brew.sh/Installation),
+CLI/development tools, pinned shell/editor assets, all fonts in `setup/fonts.json`,
+selected GUI apps, configuration links, and Git hooks. It also selects Zsh as your
+login shell. Missing Python is bootstrapped too; its absence limits the preview
+to a stage overview. Administrator authentication may be requested.
+
+Automatic provisioning targets Apple Silicon macOS 15+ and current Debian/Ubuntu
+derivatives or Fedora. Linux GUI packages require x86_64 and an existing desktop:
+Kitty, native [1Password](https://support.1password.com/install-linux/),
+[VS Code](https://code.visualstudio.com/docs/setup/linux), and
+[Zed](https://zed.dev/docs/installation). Mac apps are listed in `setup/mac-apps.txt`.
+Installed formulas and GUI apps are skipped; native dependencies may be updated.
+Downloads require internet access. GPU drivers, account sign-ins, and enabling
+the 1Password SSH agent remain device-local.
+
+For a server, add `--skip-apps --skip-shell`. Other exclusions: `--skip-dev`,
+`--skip-fonts`, `--skip-assets`, or `--skip-packages --skip-apps` for your own
+package manager. `--fonts meslo` selects a smaller font set. See
+`./bin/dotfiles bootstrap --help`. Rerun after a failed stage; log out/in afterward.
+Archive downloads work for setup; repository hooks and sync require a Git clone.
 
 For links only, preview `./install.sh --dry-run`, then run `./install.sh`.
 Only the personal profile is supported. Replaced targets are backed up under

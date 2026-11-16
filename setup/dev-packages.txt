@@ -1,4 +1,4 @@
-# Optional development tools; installed by bootstrap --dev.
+# Development tools; bootstrap installs these unless --skip-dev.
 go
 node
 uv

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Provision, inspect, and update the personal Linux/macOS environment."""
 import argparse
+import contextlib
 import datetime
 import hashlib
 import json
 import os
 from pathlib import Path
 import platform
+import pwd
 import shlex
 import shutil
 import subprocess
@@ -17,13 +19,13 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(args, *, capture=False, check=True, dry=False, cwd=ROOT, timeout=None, env=None):
+def run(args, *, capture=False, check=True, dry=False, cwd=ROOT, timeout=None, env=None, input_data=None):
     args = [str(arg) for arg in args]
     if dry:
         print('Would run: ' + shlex.join(args))
         return subprocess.CompletedProcess(args, 0, '', '')
     return subprocess.run(args, cwd=cwd, text=True, check=check,
-                          capture_output=capture, timeout=timeout, env=env)
+                          capture_output=capture, timeout=timeout, env=env, input=input_data)
 
 
 def git(*args, **kwargs):
@@ -80,6 +82,9 @@ def install_args(platform_name, *args):
 
 
 def enable_hooks(dry=False):
+    if not (ROOT / '.git').exists():
+        print('Archive checkout: skipping repository hooks; hooks and sync require a Git clone.')
+        return
     configured = git('config', '--local', '--get', 'core.hooksPath', check=False).stdout.strip()
     if configured and configured not in ('.githooks', str(ROOT / '.githooks')):
         print('Keeping custom Git hooks; chain .githooks/pre-commit and pre-push manually.')
@@ -166,25 +171,161 @@ def assets(args):
     return 0
 
 
+def linux_manager(release=Path('/etc/os-release')):
+    values = {}
+    for line in release.read_text().splitlines():
+        key, separator, value = line.partition('=')
+        if separator and key in ('ID', 'ID_LIKE'):
+            values[key] = ' '.join(shlex.split(value))
+    ids = (values.get('ID', '') + ' ' + values.get('ID_LIKE', '')).split()
+    if {'ubuntu', 'debian'} & set(ids):
+        return 'apt'
+    if 'fedora' in ids:
+        return 'dnf'
+    raise RuntimeError('Automatic Linux setup supports Debian/Ubuntu derivatives and Fedora; use --skip-packages --skip-apps with preinstalled tools elsewhere.')
+
+
+def download(url, target, dry=False):
+    run(['curl', '--fail', '--location', '--retry', '2', '--output', target, url], dry=dry)
+
+
+def native_app_present(manager, name):
+    query = (['dpkg-query', '-W', '-f=${Status}', name] if manager == 'apt' else ['rpm', '-q', name])
+    if not shutil.which(query[0]):
+        return False
+    result = run(query, capture=True, check=False)
+    return result.returncode == 0 and (manager != 'apt' or result.stdout.strip() == 'install ok installed')
+
+
+def check_zed_destination():
+    if shutil.which('zed'):
+        return
+    for relative in ('.local/zed.app', '.local/bin/zed', '.local/share/applications/dev.zed.Zed.desktop'):
+        target = Path.home() / relative
+        if target.exists() or target.is_symlink():
+            raise RuntimeError(f'Zed destination needs review: {target}')
+
+
+def linux_apps(dry=False):
+    manager = 'apt' if dry and platform.system() != 'Linux' else linux_manager()
+    manifest = read_json('setup/linux-apps.json')
+    native = list(manifest['native'][manager])
+    if manager == 'apt':
+        # Ubuntu 24+/Debian 13 renamed ALSA during the time_t transition.
+        t64 = run(['apt-cache', 'show', 'libasound2t64'], capture=True, check=False) if shutil.which('apt-cache') else subprocess.CompletedProcess([], 1, '')
+        native.append('libasound2t64' if t64.returncode == 0 and t64.stdout else 'libasound2')
+    missing_native = [name for name in native if not native_app_present(manager, name)]
+    if missing_native and manager == 'apt':
+        run(['sudo', 'apt-get', 'update'], dry=dry)
+        run(['sudo', 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'install', '-y', *missing_native], dry=dry)
+    elif missing_native:
+        run(['sudo', 'dnf', 'install', '-y', *missing_native], dry=dry)
+    # Local vendor packages configure their signed update repositories. Keep
+    # installed versions; workstation setup never performs a blanket upgrade.
+    for app in manifest['packages']:
+        name = app['name']
+        if native_app_present(manager, name):
+            print(f'Keeping installed app: {name}')
+            continue
+        suffix = 'deb' if manager == 'apt' else 'rpm'
+        # A fixed placeholder makes previews deterministic and creates no files.
+        with context_tempdir(dry) as temporary:
+            package = Path(temporary) / (name + '.' + suffix)
+            download(app[suffix], package, dry)
+            if manager == 'apt':
+                if name == 'code':
+                    run(['sudo', 'debconf-set-selections'], input_data='code code/add-microsoft-repo boolean true\n', dry=dry)
+                run(['sudo', 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'install', '-y', package], dry=dry)
+            else:
+                key = Path(temporary) / (name + '.asc')
+                download(app['key'], key, dry)
+                run(['sudo', 'rpm', '--import', key], dry=dry)
+                run(['sudo', 'dnf', 'install', '-y', '--setopt=localpkg_gpgcheck=1', package], dry=dry)
+                repository = app.get('rpm_repository')
+                if repository:
+                    target = Path('/etc/yum.repos.d') / (name + '.repo')
+                    if target.exists() or target.is_symlink():
+                        print(f'Keeping existing update repository: {target}')
+                    else:
+                        source = Path(temporary) / (name + '.repo')
+                        if not dry:
+                            source.write_text(repository)
+                        run(['sudo', 'install', '-m', '644', source, target], dry=dry)
+    if not shutil.which('zed'):
+        # The upstream installer replaces its application bundle. Refuse an
+        # occupied destination rather than treating unknown content as ours.
+        check_zed_destination()
+        with context_tempdir(dry) as temporary:
+            installer = Path(temporary) / 'zed-install.sh'
+            download(manifest['zed']['url'], installer, dry)
+            if not dry and file_sha256(installer) != manifest['zed']['sha256']:
+                raise RuntimeError('Zed installer checksum mismatch; nothing executed.')
+            run(['sh', installer], dry=dry)
+
+
+def context_tempdir(dry):
+    return contextlib.nullcontext('/tmp/dotfiles-preview') if dry else tempfile.TemporaryDirectory(prefix='dotfiles-', dir='/tmp')
+
+
+def login_shell(dry=False):
+    account = pwd.getpwuid(os.getuid())
+    shell = shutil.which('zsh')
+    if not shell and not dry:
+        raise RuntimeError('Zsh is missing; install packages before configuring the login shell.')
+    shell = shell or 'zsh'
+    if account.pw_shell == shell:
+        print('Zsh is already the login shell.')
+        return
+    registered = Path('/etc/shells').read_text().splitlines()
+    if shell not in registered:
+        if dry:
+            print(f'Would register {shell} in /etc/shells')
+        else:
+            run(['sudo', 'tee', '-a', '/etc/shells'], input_data='\n' + shell + '\n', capture=True)
+    run(['sudo', 'chsh', '-s', shell, account.pw_name], dry=dry)
+
+
 def bootstrap(args):
     platform_name = os_name(args.platform)
-    if args.apps and platform_name != 'mac':
-        raise RuntimeError('--apps supports macOS casks only; Linux GUI apps stay distro-managed.')
-    unknown_fonts = set(args.fonts or []) - read_json('setup/fonts.json').keys()
+    apps_selected = not args.skip_apps
+    if apps_selected and args.skip_packages:
+        raise RuntimeError('--skip-packages requires --skip-apps; GUI installers need package prerequisites.')
+    if not args.dry_run and platform_name != os_name():
+        raise RuntimeError('--platform may target another OS only with --dry-run.')
+    if not args.dry_run and (not args.skip_packages or not args.skip_shell) and os.getuid() == 0:
+        raise RuntimeError('Run bootstrap as your normal user, not root or sudo.')
+    if platform_name == 'linux' and (apps_selected or not args.skip_packages) and not (args.dry_run and platform.system() != 'Linux'):
+        linux_manager()
+    if apps_selected and platform_name == 'linux' and platform.machine() != 'x86_64' and not args.dry_run:
+        raise RuntimeError('Selected Linux vendor packages require x86_64; use --skip-apps on ARM.')
+    if apps_selected and platform_name == 'linux':
+        check_zed_destination()
+    selected_fonts = [] if args.skip_fonts else (args.fonts or list(read_json('setup/fonts.json')))
+    unknown_fonts = set(selected_fonts) - read_json('setup/fonts.json').keys()
     if unknown_fonts:
         raise RuntimeError('Unknown font families: ' + ', '.join(sorted(unknown_fonts)))
     check_rendered()
-    brew = brew_command()
+    # Also runs in the Python-free entry point before first-stage provisioning.
+    # The second check includes any frameworks created during setup.
+    # Run the existing link/conflict preflight before package/network mutations.
+    preflight = run(install_args(platform_name, '--dry-run'), capture=True, check=False)
+    if preflight.returncode:
+        raise RuntimeError('Configuration conflicts must be resolved before provisioning.\n' + preflight.stdout + preflight.stderr)
+    cross_preview = args.dry_run and platform_name != os_name()
+    brew = None if cross_preview else brew_command()
     if not args.skip_packages:
-        if not brew and not args.dry_run:
-            raise RuntimeError('Install Homebrew first (https://brew.sh), or use --skip-packages with your own package manager.')
-        brew = brew or 'brew'
+        run(['bash', ROOT / 'scripts/prerequisites.sh', '--platform', platform_name,
+             *(['--dry-run'] if args.dry_run else [])])
+        configure_path()
+        brew = (None if cross_preview else brew_command()) or ('brew' if args.dry_run else None)
+        if not brew:
+            raise RuntimeError('Homebrew installation did not provide brew; rerun bootstrap after resolving the installer error.')
         selected = packages(f'setup/{platform_name}-packages.txt')
         if args.dev:
             selected += packages('setup/dev-packages.txt')
         # Install missing formulae only. Routine package upgrades are separate.
         installed = set()
-        if brew_command():
+        if not cross_preview and brew_command():
             result = run([brew, 'list', '--formula', '-1'], capture=True, check=False)
             if result.returncode:
                 raise RuntimeError('Could not inspect Homebrew formulae; no packages changed.')
@@ -192,8 +333,17 @@ def bootstrap(args):
         missing = [name for name in dict.fromkeys(selected) if name not in installed]
         if missing:
             run([brew, 'install', *missing], dry=args.dry_run)
-        if args.apps:
-            run([brew, 'install', '--cask', *packages('setup/mac-apps.txt')], dry=args.dry_run)
+        configure_path()
+        if apps_selected:
+            if platform_name == 'mac':
+                installed_casks = set()
+                if not cross_preview and brew_command():
+                    installed_casks = set(run([brew, 'list', '--cask', '-1'], capture=True).stdout.splitlines())
+                missing_casks = [name for name in packages('setup/mac-apps.txt') if name not in installed_casks]
+                if missing_casks:
+                    run([brew, 'install', '--cask', *missing_casks], dry=args.dry_run)
+            else:
+                linux_apps(args.dry_run)
     if not args.skip_assets:
         groups = ['shell', 'editors']
         asset_args = argparse.Namespace(platform=platform_name, group=groups,
@@ -203,13 +353,15 @@ def bootstrap(args):
     # keeps asset conflicts from occurring after unrelated app files changed.
     run(install_args(platform_name, *(['--dry-run'] if args.dry_run else [])))
     enable_hooks(args.dry_run)
-    if args.fonts:
-        fonts(argparse.Namespace(families=args.fonts, list=False, dry_run=args.dry_run,
+    if selected_fonts:
+        fonts(argparse.Namespace(families=selected_fonts, list=False, dry_run=args.dry_run,
                                  platform=platform_name))
     if not args.dry_run and not args.skip_assets:
         remember_assets(enabled_assets() + groups)
+    if not args.skip_shell:
+        login_shell(args.dry_run)
     print('Bootstrap preview complete.' if args.dry_run else
-          'Bootstrap complete. Open a new shell, restart apps, and run dotfiles doctor.')
+          'Bootstrap complete. Log out/in, sign into your apps, enable the 1Password SSH agent, and run dotfiles doctor.')
     return 0
 
 
@@ -434,9 +586,15 @@ def parser():
         if name == 'bootstrap':
             command.add_argument('--skip-packages', action='store_true')
             command.add_argument('--skip-assets', action='store_true')
-            command.add_argument('--apps', action='store_true')
-            command.add_argument('--dev', action='store_true')
-            command.add_argument('--fonts', nargs='+', metavar='FAMILY')
+            command.add_argument('--apps', dest='skip_apps', action='store_false', help=argparse.SUPPRESS)
+            command.add_argument('--skip-apps', action='store_true', help='Omit GUI apps (servers/headless hosts)')
+            command.add_argument('--dev', dest='dev', action='store_true', help=argparse.SUPPRESS)
+            command.add_argument('--skip-dev', dest='dev', action='store_false', help='Omit development tools')
+            command.add_argument('--skip-shell', action='store_true', help='Keep the current login shell')
+            font_choice = command.add_mutually_exclusive_group()
+            font_choice.add_argument('--fonts', nargs='+', metavar='FAMILY', help='Select font families (default: all manifest families)')
+            font_choice.add_argument('--skip-fonts', action='store_true')
+            command.set_defaults(skip_apps=False, dev=True)
         elif name == 'doctor':
             command.add_argument('--online', action='store_true')
             command.add_argument('--strict', action='store_true')

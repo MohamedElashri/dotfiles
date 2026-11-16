@@ -1,0 +1,25 @@
+{
+  "native": {
+    "apt": ["kitty", "fontconfig", "xdg-utils", "xdg-desktop-portal", "xdg-desktop-portal-gtk", "libvulkan1", "libxkbcommon0"],
+    "dnf": ["kitty", "fontconfig", "xdg-utils", "xdg-desktop-portal", "xdg-desktop-portal-gtk", "vulkan-loader", "alsa-lib", "libxkbcommon"]
+  },
+  "packages": [
+    {
+      "name": "1password",
+      "deb": "https://downloads.1password.com/linux/debian/amd64/stable/1password-latest.deb",
+      "rpm": "https://downloads.1password.com/linux/rpm/stable/x86_64/1password-latest.rpm",
+      "key": "https://downloads.1password.com/linux/keys/1password.asc"
+    },
+    {
+      "name": "code",
+      "deb": "https://go.microsoft.com/fwlink/?LinkID=760868",
+      "rpm": "https://go.microsoft.com/fwlink/?LinkID=760867",
+      "key": "https://packages.microsoft.com/keys/microsoft.asc",
+      "rpm_repository": "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc\n"
+    }
+  ],
+  "zed": {
+    "url": "https://raw.githubusercontent.com/zed-industries/zed/6c7508a133cba5c93fb182e9d9efdfb392abf68d/script/install.sh",
+    "sha256": "c42e96c9e3da1fae61ac11b0922ad033e8fcac3c34b44303805ad3796081b502"
+  }
+}

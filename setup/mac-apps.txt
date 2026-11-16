@@ -1,4 +1,4 @@
-# Optional Mac GUI apps; installed by bootstrap --apps.
+# Selected Mac GUI apps; bootstrap installs missing casks unless --skip-apps.
 1password
 ghostty
 kitty

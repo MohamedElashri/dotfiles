@@ -7,4 +7,76 @@ while [ -L "$file" ]; do
   case "$file" in /*) ;; *) file="$directory/$file" ;; esac
 done
 root=$(cd -P "$(dirname "$file")/.." && pwd)
+python_ready=1
+# Apple's Python stub can open an installer dialog; provision CLT first instead.
+if [ "$(uname -s)" = Darwin ] && [ "$(command -v python3 || true)" = /usr/bin/python3 ] && ! xcode-select -p >/dev/null 2>&1; then
+  python_ready=0
+elif ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+  python_ready=0
+fi
+if [ "$python_ready" = 0 ]; then
+  # Validate the complete bootstrap option set before provisioning without
+  # Python. The normal parser remains authoritative once Python is available.
+  [ "${1:-}" = bootstrap ] || { echo 'Python 3.9+ is missing; run ./bin/dotfiles bootstrap first.' >&2; exit 1; }
+  arguments=("$@")
+  shift
+  preview=0
+  # Keep this array nonempty: Bash 3.2 treats empty arrays as unset with -u.
+  case "$(uname -s)" in
+    Darwin) platform_args=(--platform mac) ;;
+    Linux) platform_args=(--platform linux) ;;
+    *) echo 'Automatic setup supports macOS and Linux.' >&2; exit 1 ;;
+  esac
+  font_mode=0
+  selected_fonts=0
+  skip_fonts=0
+  skip_apps=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --help|-h) echo 'Usage: dotfiles bootstrap [--dry-run] [--skip-packages] [--skip-assets] [--skip-apps] [--skip-dev] [--skip-fonts|--fonts FAMILY ...] [--skip-shell] [--platform linux|mac]'; exit 0 ;;
+      --skip-packages) echo '--skip-packages requires an existing Python 3.9+ installation.' >&2; exit 1 ;;
+      --dry-run) preview=1; font_mode=0 ;;
+      --skip-fonts) skip_fonts=1; font_mode=0 ;;
+      --skip-apps) skip_apps=1; font_mode=0 ;;
+      --apps) skip_apps=0; font_mode=0 ;;
+      --skip-assets|--skip-dev|--skip-shell|--dev) font_mode=0 ;;
+      --platform) shift; case "${1:-}" in linux|mac) platform_args=(--platform "$1") ;; *) echo 'Use --platform linux|mac' >&2; exit 2 ;; esac; font_mode=0 ;;
+      --fonts) font_mode=1; selected_fonts=1; [ "$#" -gt 1 ] && [[ "$2" != --* ]] || { echo '--fonts requires a family.' >&2; exit 2; } ;;
+      --*) echo "Unknown bootstrap option: $1" >&2; exit 2 ;;
+      *)
+        if [ "$font_mode" != 1 ] || ! grep -Fq "  \"$1\": {" "$root/setup/fonts.json"; then
+          echo "Unknown bootstrap argument/font: $1" >&2; exit 2
+        fi
+        ;;
+    esac
+    shift
+  done
+  if [ "$selected_fonts" = 1 ] && [ "$skip_fonts" = 1 ]; then
+    echo '--fonts and --skip-fonts are mutually exclusive.' >&2; exit 2
+  fi
+  if [ "$preview" = 0 ] && [ "$skip_apps" = 0 ] && [ "${platform_args[1]}" = linux ] && [ "$(uname -m)" != x86_64 ]; then
+    echo 'Selected Linux vendor packages require x86_64; use --skip-apps on ARM.' >&2; exit 1
+  fi
+  if [ "$preview" = 1 ]; then
+    bash "$root/scripts/prerequisites.sh" "${platform_args[@]}" --dry-run
+    printf 'Would resume bootstrap stages with:'; printf ' %q' "${arguments[@]}"; printf '\n'
+    echo 'Install Python 3.9+ to preview individual second-stage commands without provisioning.'
+    exit 0
+  fi
+  # Conflict checks are written in Bash and do not need Python. Do not install
+  # prerequisites first if known managed paths already require reconciliation.
+  bash "$root/install.sh" "${platform_args[@]}" --dry-run >/dev/null
+  bash "$root/scripts/prerequisites.sh" "${platform_args[@]}"
+  if ! command -v brew >/dev/null 2>&1; then
+    for prefix in /opt/homebrew /home/linuxbrew/.linuxbrew /usr/local; do
+      if [ -x "$prefix/bin/brew" ]; then export PATH="$prefix/bin:$prefix/sbin:$PATH"; break; fi
+    done
+  fi
+  # CLT's Python may be older than required. Homebrew supplies a current one.
+  if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+    brew install python
+  fi
+  python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' || { echo 'A Python 3.9+ interpreter is still unavailable.' >&2; exit 1; }
+  exec python3 "$root/scripts/workflow.py" "${arguments[@]}"
+fi
 exec python3 "$root/scripts/workflow.py" "$@"

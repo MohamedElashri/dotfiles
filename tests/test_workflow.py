@@ -193,8 +193,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(output.read_text(), '{}\n')
 
     def test_bootstrap_dry_run_changes_neither_home_nor_repository(self):
-        args = argparse.Namespace(platform='linux', dry_run=True, skip_packages=False,
-                                  skip_assets=False, apps=False, dev=True, fonts=['meslo'])
+        args = workflow.parser().parse_args(['bootstrap', '--platform', 'linux', '--dry-run', '--skip-apps', '--fonts', 'meslo'])
         head = self.git('rev-parse', 'HEAD')
         with mock.patch.object(workflow, 'brew_command', return_value=None), contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(workflow.bootstrap(args), 0)
@@ -211,15 +210,14 @@ class WorkflowTests(unittest.TestCase):
             self.assertTrue({'claude', 'codex', 'opencode'}.isdisjoint(command[2:]))
         self.assertIn('Would download and verify meslo', output.getvalue())
 
-    def test_invalid_platform_option_fails_before_packages_change(self):
-        args = argparse.Namespace(platform='linux', apps=True)
+    def test_invalid_font_option_fails_before_packages_change(self):
+        args = workflow.parser().parse_args(['bootstrap', '--platform', 'linux', '--fonts', 'unknown'])
         with mock.patch.object(workflow, 'run') as execute, self.assertRaises(RuntimeError):
             workflow.bootstrap(args)
         execute.assert_not_called()
 
     def test_bootstrap_links_custom_theme_after_provisioning_framework(self):
-        args = argparse.Namespace(platform='linux', dry_run=False, skip_packages=True,
-                                  skip_assets=False, apps=False, dev=False, fonts=None)
+        args = workflow.parser().parse_args(['bootstrap', '--platform', 'linux', '--skip-packages', '--skip-apps', '--skip-fonts', '--skip-shell'])
         def provision(_args):
             (self.home / '.oh-my-zsh/.git').mkdir(parents=True)
             return 0
