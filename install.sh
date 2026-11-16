@@ -162,6 +162,23 @@ for ((i=0; i<${#sources[@]}; i++)); do
         done
       fi ;;
   esac
+  # Existing correct links need no directory writes. Otherwise reject known
+  # write blockers before changing unrelated configuration or fetching updates.
+  dest=${targets[i]}
+  if [ "$STATUS" = 0 ] && { [ ! -L "$dest" ] || [ "$(readlink "$dest")" != "${sources[i]}" ]; }; then
+    write_parent=$(dirname "$dest")
+    while [ ! -d "$write_parent" ]; do write_parent=$(dirname "$write_parent"); done
+    if [ ! -w "$write_parent" ]; then
+      printf 'Agent path is not writable: %s\n' "$write_parent" >&2
+      exit 1
+    fi
+    # Moving a real directory to the backup parent requires write access to
+    # that directory as well as its current parent on supported platforms.
+    if [ -d "$dest" ] && [ ! -L "$dest" ] && [ ! -w "$dest" ]; then
+      printf 'Agent path is not writable: %s\n' "$dest" >&2
+      exit 1
+    fi
+  fi
 done
 if [ "$CHECK_EXISTING" = 1 ]; then
   canonical_path() {

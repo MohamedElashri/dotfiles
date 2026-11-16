@@ -36,6 +36,12 @@ class PrivateCheckTests(unittest.TestCase):
             self.assertIsNotNone(check_private.check_path(path))
         self.assertIsNone(check_private.check_path("settings/.env.example"))
 
+    def test_private_ssh_fragments_are_rejected(self):
+        for prefix in ('config/ssh', 'config/mac/ssh', '.ssh'):
+            for name in ('config.local', 'config.hep.local'):
+                with self.subTest(path=prefix + '/' + name):
+                    self.assertEqual(check_private.check_path(prefix + '/' + name), 'private SSH routes file')
+
     def test_hook_blocks_staged_secret_without_displaying_value(self):
         with tempfile.TemporaryDirectory(prefix="dotfiles-private-check-") as directory:
             root = Path(directory)

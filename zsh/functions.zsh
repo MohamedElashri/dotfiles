@@ -137,13 +137,13 @@ get_size() {
   if [[ $size -lt 1024 ]]; then
     echo "Size of '$target': $size B"
   elif [[ $size -lt 1048576 ]]; then
-    size_kb=$(awk "BEGIN {printf \"%.2f\", $size / 1024}")
+    size_kb=$(awk -v size="$size" 'BEGIN {printf "%.2f", size / 1024}')
     echo "Size of '$target': $size_kb KB"
   elif [[ $size -ge 1073741824 ]]; then
-    size_gb=$(bc <<< "scale=2; $size / 1073741824")
+    size_gb=$(awk -v size="$size" 'BEGIN {printf "%.2f", size / 1073741824}')
     echo "Size of '$target': $size_gb GB"
   else
-    size_mb=$(bc <<< "scale=2; $size / 1048576")
+    size_mb=$(awk -v size="$size" 'BEGIN {printf "%.2f", size / 1048576}')
     echo "Size of '$target': $size_mb MB"
   fi
 }

@@ -26,7 +26,11 @@ config/mac/cli/opencode/config.json
 config/mac/cli/opencode/opencode.jsonc
 config/mac/cli/dnscrypt-proxy/dnscrypt-proxy.toml
 config/mac/ssh/config.local
+config/ssh/config.local
 .ssh/config.local
+config/mac/ssh/config.hep.local
+config/ssh/config.hep.local
+.ssh/config.hep.local
 
 # Editor
 .vscode/

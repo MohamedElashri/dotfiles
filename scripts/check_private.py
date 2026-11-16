@@ -56,7 +56,8 @@ def check_path(path):
         return "local OpenCode credentials file"
     if path in ("config/mac/cli/opencode/opencode.jsonc", "config/mac/cli/dnscrypt-proxy/dnscrypt-proxy.toml"):
         return "private service endpoint file"
-    if path in ("config/mac/ssh/config.local", ".ssh/config.local"):
+    if path in ("config/mac/ssh/config.local", "config/ssh/config.local", ".ssh/config.local",
+                "config/mac/ssh/config.hep.local", "config/ssh/config.hep.local", ".ssh/config.hep.local"):
         return "private SSH routes file"
     return None
 

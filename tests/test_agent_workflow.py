@@ -325,6 +325,46 @@ class AgentWorkflowTests(unittest.TestCase):
                     parent.chmod(0o755)
                 self.assertEqual(snapshot(home), before)
 
+    @unittest.skipIf(os.geteuid() == 0, 'Permission-denial behavior requires an unprivileged user')
+    def test_required_agent_writes_are_preflighted(self):
+        for platform in ('linux', 'mac'):
+            cases = [('parent', name) for name in ('.codex', '.agents/skills', '.claude/skills')]
+            cases += [('directory', name) for name in SKILL_TARGETS]
+            for kind, relative in cases:
+                with self.subTest(platform=platform, kind=kind, path=relative):
+                    home = self.home(f'{platform}-{kind}-{relative.replace("/", "-")}')
+                    blocked = home / relative
+                    blocked.mkdir(parents=True)
+                    if kind == 'directory':
+                        (blocked / 'SKILL.md').write_text('Preserve original instructions\n')
+                    before = snapshot(home)
+                    blocked.chmod(0o555)
+                    try:
+                        for option in ('--dry-run', '--check-existing', ''):
+                            result = self.install(home, platform, *([option] if option else []), check=False)
+                            self.assertEqual(result.returncode, 1)
+                            self.assertIn('Agent path is not writable: ' + str(blocked), result.stderr)
+                            self.assertEqual(snapshot(home), before)
+                    finally:
+                        blocked.chmod(0o755)
+                    self.assertEqual(snapshot(home), before)
+
+    @unittest.skipIf(os.geteuid() == 0, 'Permission-denial behavior requires an unprivileged user')
+    def test_correct_agent_links_work_with_readonly_parents(self):
+        home = self.home('home')
+        self.install(home, 'linux')
+        parents = [home / name for name in ('.codex', '.agents/skills', '.claude/skills')]
+        before = snapshot(home)
+        for parent in parents:
+            parent.chmod(0o555)
+        try:
+            for option in ('--status', '--check-existing', '--dry-run', ''):
+                self.install(home, 'linux', *([option] if option else []))
+                self.assertEqual(snapshot(home), before)
+        finally:
+            for parent in parents:
+                parent.chmod(0o755)
+
     def test_installed_git_ignore_exposes_project_guidance_only(self):
         home = self.home('home')
         self.install(home, 'linux')
@@ -376,6 +416,25 @@ class AgentWorkflowTests(unittest.TestCase):
             descriptions.add(metadata['description'])
             self.assertTrue('\n'.join(lines[end + 1:]).strip())
         self.assertEqual(len(descriptions), 2)
+
+    def test_local_git_ignore_override_is_applied_last(self):
+        for platform in ('linux', 'mac'):
+            with self.subTest(platform=platform):
+                home = self.home(platform)
+                self.install(home, platform)
+                default = self.run_command(home, 'git', 'config', '--global', '--includes', '--get', 'core.excludesFile')
+                self.assertEqual(default.stdout.strip(), '~/.config/dotfiles/git-ignore')
+                repo = self.home(platform + '-project')
+                self.run_command(home, 'git', 'init', '-q', str(repo))
+                (repo / 'local-only.txt').write_text('Synthetic fixture\n')
+                visible = self.run_command(home, 'git', '-C', str(repo), 'check-ignore', '-q', 'local-only.txt', check=False)
+                self.assertEqual(visible.returncode, 1)
+                (home / '.config/custom-ignore').write_text('local-only.txt\n')
+                (home / '.config/dotfiles/local.gitconfig').write_text(
+                    '[core]\n excludesFile = ~/.config/custom-ignore\n')
+                actual = self.run_command(home, 'git', 'config', '--global', '--includes', '--get', 'core.excludesFile')
+                self.assertEqual(actual.stdout.strip(), '~/.config/custom-ignore')
+                self.run_command(home, 'git', '-C', str(repo), 'check-ignore', '-q', 'local-only.txt')
 
 
 if __name__ == '__main__':

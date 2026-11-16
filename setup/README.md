@@ -40,7 +40,7 @@ After provisioning:
 1. Set up/unlock 1Password and the SSH agent, then run `gh auth login`. Git
    uses signed commits, the platform's 1Password signing executable, and Neovim
    as the editor. `templates/local/local.gitconfig.example` shows local overrides.
-2. Restore private overrides and Mac `~/.ssh/config.local` securely.
+2. Restore private overrides and `~/.ssh/config.local` securely on either platform.
 3. Authenticate Atuin against the configured personal server and restore its
    encryption key through your existing secure process. The shared config keeps
    the existing `~/atuin/.history.db`, `.key`, and `.session` paths on both platforms.
@@ -149,7 +149,7 @@ Git history has not been rewritten.
 | Atuin, Micro, Helix, GitHub CLI, bat, btop, asciinema, tmux | Shared configuration on both platforms |
 | Waveterm | Common settings plus OS overrides; widgets/themes can differ |
 | Ghostty and Zed | Shared settings on both platforms |
-| SSH routes | Repository configuration on Linux; `~/.ssh/config.local` on Mac |
+| SSH routes | Shared Linux routes plus `~/.ssh/config.local` overrides; local file only on Mac |
 | Karabiner, Vicinae, Rio, Warp, Hyper, Nano, Powerlevel10k preferences | Existing Mac configuration |
 | VS Code | Its own Settings Sync |
 | Codex global guidance and shared Codex/Claude Code audit skills | `agent-workflow/`, linked by the personal installer |

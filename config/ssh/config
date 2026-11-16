@@ -1,3 +1,6 @@
+# Machine-local routes and overrides must precede shared defaults.
+Include ~/.ssh/config.local
+
 # =========================
 # Tailscale / VPS / home lab
 # =========================

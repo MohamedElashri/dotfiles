@@ -83,6 +83,42 @@ class InstallTests(unittest.TestCase):
         for p in self.home.rglob('*'):
             if p.is_symlink(): self.assertTrue(p.exists(), str(p))
 
+    def test_local_ssh_fragment_precedes_shared_defaults(self):
+        ssh_dir = self.home/'.ssh'
+        ssh_dir.mkdir()
+        local = ssh_dir/'config.local'
+        fragment = ssh_dir/'config.hep.local'
+        fragment.write_text('Host local-compute\n'
+                            ' HostName compute.example.invalid\n'
+                            ' User local-user\n'
+                            ' Port 2222\n'
+                            ' ProxyJump local-gateway\n'
+                            ' IdentityAgent none\n'
+                            ' ForwardAgent no\n'
+                            ' ControlMaster no\n'
+                            ' ServerAliveInterval 600\n')
+        local.write_text(f'Include "{fragment}"\n\nHost *\n')
+        for platform, source in [('linux', 'config/ssh/config'), ('mac', 'config/mac/ssh/config')]:
+            with self.subTest(platform=platform):
+                managed = self.home/f'ssh-{platform}.config'
+                managed.write_text((ROOT/source).read_text().replace(
+                    'Include ~/.ssh/config.local', f'Include "{local}"'))
+                result = self.run_cmd('ssh', '-G', '-F', str(managed), 'local-compute')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                values = dict(line.split(' ', 1) for line in result.stdout.splitlines() if ' ' in line)
+                self.assertEqual(values['hostname'], 'compute.example.invalid')
+                self.assertEqual(values['user'], 'local-user')
+                self.assertEqual(values['port'], '2222')
+                self.assertEqual(values['proxyjump'], 'local-gateway')
+                self.assertEqual(values['identityagent'], 'none')
+                self.assertEqual(values['forwardagent'], 'no')
+                self.assertIn(values['controlmaster'], ('no', 'false'))
+                self.assertEqual(values['serveraliveinterval'], '600')
+        fragment.unlink()
+        result = self.run_cmd('ssh', '-G', '-F', str(self.home/'ssh-linux.config'), 'local-compute')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('hostname local-compute\n', result.stdout)
+
     def test_mac_profile_loads_linked_bash_config(self):
         self.install('--platform', 'mac')
         self.assertEqual((self.home/'.profile').resolve(), ROOT/'config/mac/shell/.profile')
@@ -226,6 +262,24 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "alias ll='ls -alF'\nalias la='ls -A'\n")
 
+    def test_get_size_requires_no_bc_dependency(self):
+        commands = self.home/'size-commands'
+        commands.mkdir()
+        for name in ('uname', 'du', 'stat', 'awk'):
+            (commands/name).symlink_to(shutil.which(name))
+        env = dict(self.env, PATH=str(commands), LC_ALL='C')
+        target = self.home/'size sample'
+        for size, expected in [(1536, '1.50 KB'), (1572864, '1.50 MB'), (1610612736, '1.50 GB')]:
+            with self.subTest(size=size):
+                with target.open('wb') as stream:
+                    stream.truncate(size)
+                result = self.run_cmd(shutil.which('zsh'), '-f', '-c',
+                                      'source "$1"; get_size "$2"', 'size-check',
+                                      str(ROOT/'zsh/functions.zsh'), str(target), env=env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, '')
+                self.assertEqual(result.stdout.strip(), f"Size of '{target}': {expected}")
+
     def test_saved_profile_without_final_newline(self):
         config = self.home/'.config/dotfiles'
         config.mkdir(parents=True)
@@ -237,11 +291,18 @@ class InstallTests(unittest.TestCase):
         self.assertTrue((self.home/'.zshrc').is_symlink())
 
     def test_reinstall_after_checkout_moves(self):
-        for profile, platform in [('personal', 'linux'), ('retired', 'linux'), ('personal', 'mac')]:
-            with self.subTest(previous_profile=profile, platform=platform):
-                original = self.home/f'original checkout {profile} {platform}'
-                moved = self.home/f'moved checkout {profile} {platform}'
-                target_home = self.home/f'home {profile} {platform}'
+        scenarios = [('personal', 'linux', False), ('retired', 'linux', False),
+                     ('personal', 'mac', False), ('personal', 'linux', True)]
+        for profile, platform, aliased in scenarios:
+            with self.subTest(previous_profile=profile, platform=platform, aliased=aliased):
+                base = self.home
+                label = f'{profile} {platform} {aliased}'
+                if aliased:
+                    base = self.home/'home alias'
+                    base.symlink_to(self.home, target_is_directory=True)
+                original = base/f'original checkout {label}'
+                moved = base/f'moved checkout {label}'
+                target_home = base/f'home {label}'
                 target_home.mkdir()
                 shutil.copytree(ROOT, original, ignore=shutil.ignore_patterns('.git', '.claude', '.cache', 'fonts', '__pycache__'))
                 env = dict(self.env, HOME=str(target_home), ZDOTDIR=str(target_home))
@@ -263,10 +324,10 @@ class InstallTests(unittest.TestCase):
                 for target, source in [('.codex/AGENTS.md', 'agent-workflow/global.md'),
                                        ('.agents/skills/research-audit/SKILL.md', 'agent-workflow/skills/research-audit/SKILL.md'),
                                        ('.agents/skills/engineering-audit/SKILL.md', 'agent-workflow/skills/engineering-audit/SKILL.md')]:
-                    self.assertEqual((target_home/target).resolve(strict=True), moved/source)
+                    self.assertEqual((target_home/target).resolve(strict=True), (moved/source).resolve(strict=True))
                 for name in ('research-audit', 'engineering-audit'):
                     self.assertEqual((target_home/'.claude/skills'/name/'SKILL.md').resolve(strict=True),
-                                     moved/'agent-workflow/skills'/name/'SKILL.md')
+                                     (moved/'agent-workflow/skills'/name/'SKILL.md').resolve(strict=True))
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--status', env=env)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertFalse((target_home/'.config/dotfiles/site.bash').exists())

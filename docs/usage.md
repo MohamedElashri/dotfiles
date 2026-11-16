@@ -1,4 +1,4 @@
-# Portable agent guidance
+# Dotfiles usage
 
 The personal profile links a Codex global file and the same two skill directories
 into both Codex and Claude Code on Linux and macOS:
@@ -54,6 +54,9 @@ links, installation stops with `Unmanaged skill contents` before any configurati
 writes. Reconcile that content manually; it is never silently moved or hidden.
 Unreadable or unsearchable real skill directories also stop preflight with
 `Cannot inspect skill directory`, preventing a partial installation.
+When a link needs changes, installation and update preflight also require write
+access to its existing parent and to any real skill directory being moved into
+backup. Correct managed links remain usable under read-only parents.
 Earlier managed manifest-file links migrate through the same backup mechanism
 when no sibling content is present. Sync still refuses unmanaged manifests.
 
@@ -112,3 +115,24 @@ teams can deliberately version their guidance. `.codex/`, `AGENTS.override.md`,
 and credential patterns stay ignored. Other repositories may expose previously
 hidden instruction files as untracked: inspect their contents and ownership
 before adding them. The installer never stages or commits files in any repository.
+
+## Private and temporary SSH routes
+
+Both platforms read `~/.ssh/config.local`; Linux loads it before shared routes
+and defaults so local values take precedence. Keep temporary host groups in a
+separate private file, such as `~/.ssh/config.hep.local`, and include it near the
+top of `config.local`:
+
+```sshconfig
+Include ~/.ssh/config.hep.local
+
+Host *
+```
+
+The final `Host *` resets matching scope before any additional local settings.
+Keep these files mode 600 under the existing private SSH directory. Comment out
+the include, or remove the fragment, to disable the temporary routes. These
+private filenames are ignored and rejected by the commit scanner if copied into
+the repository's SSH configuration directories. Use `ssh -G <alias>` to inspect
+effective settings without connecting; actual login/authentication is a separate
+check.
