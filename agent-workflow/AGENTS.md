@@ -1,87 +1,85 @@
 # Global Coding Agent Instructions
 
-Personal defaults for all repositories and languages. Follow explicit user
-requests and more specific repository instructions when they differ. Respect
-the harness's instruction hierarchy, permissions, and approval controls.
+Defaults for all repositories and languages. Follow explicit task requests,
+repository-specific instructions, and the active harness's instruction hierarchy
+and approval controls.
 
 ## Working Principles
 
-- Inspect relevant code, documentation, instructions, tests, and Git status
-  before making changes. Preserve existing user work.
-- Prefer the smallest complete, reviewable change. Follow established patterns;
-  avoid unrelated refactors, formatting, abstractions, and dependencies.
-- Prioritize correctness, readability, and maintainability. Preserve public
-  interfaces and existing behavior unless the task requires changing them.
-- Make errors actionable; avoid silent fallbacks, hidden side effects, and
-  unnecessary network access.
-- Distinguish observed facts from assumptions. Never invent results,
-  capabilities, citations, command executions, or other evidence. Consult
-  current primary sources for material version-dependent technical facts.
-- Ask before destructive or hard-to-reverse actions, including force-pushes,
-  data deletion, production changes, or credential changes. Honor authorization
-  already given for the action. Never expose secrets in code, logs, or reports.
+- Inspect relevant instructions, code, tests, and Git state before editing.
+  Preserve existing user changes and avoid unrelated modifications.
+- Make the smallest complete, reviewable change. Follow established patterns;
+  avoid unnecessary abstractions, dependencies, and formatting churn.
+- Prefer correctness, clarity, and maintainability. Avoid unintended behavior
+  changes, hidden side effects, and silent error handling.
+- Distinguish evidence from assumptions. Verify material, version-dependent
+  claims against primary documentation when available. Never invent results,
+  citations, executed commands, or capabilities.
+- Obtain approval for destructive or hard-to-reverse actions unless already
+  authorized. Never expose secrets in code, logs, or reports.
 
 ## Planning and Execution
 
-- Handle straightforward tasks directly. For substantial multi-step work,
-  maintain a single `plan.md` with scope, approach, milestones, acceptance
-  criteria, verification, and decisions or deviations. Use an existing project
-  template when available; preserve existing planning content.
-- Keep planning notes local and untracked unless explicitly requested
-  otherwise. Use a local Git exclude when needed. Do not create separate phase
-  plans, progress reports, or implementation journals.
-- Work incrementally; investigate failures rather than masking symptoms. Avoid
-  expanding the agreed scope. Complete authorized work without unnecessary
-  confirmation; ask when missing information materially affects correctness.
+- Handle simple tasks directly. For complex implementation work, use an existing
+  `plan.md` or create a single `plan.md` when useful or requested. Follow a
+  supplied template and keep scope, steps, acceptance criteria, and key decisions
+  in that file.
+- Do not create separate phase plans, progress reports, or implementation
+  journals. Keep temporary personal notes untracked; respect established tracking
+  conventions for project planning documents.
+- Work incrementally and investigate failures rather than hiding them. Stay
+  within scope; proceed without unnecessary approval requests, but ask when
+  missing information materially affects correctness or risk.
 
 ## Verification
 
-- Run relevant focused checks, then broader checks when warranted by risk and
-  scope. Add meaningful regression coverage for behavior changes; avoid tests
-  that merely mirror the implementation. Do not weaken tests to make them pass.
-- Benchmark performance changes against a baseline; do not claim improvements
-  without measurements.
-- State what was actually verified, what could not be verified, and any remaining
-  risks. Keep this reporting out of PR descriptions unless requested.
+- Match verification effort to change risk. Run relevant focused checks, then
+  broader checks when warranted. Add meaningful regression tests for behavior
+  changes; do not weaken tests just to make them pass.
+- Compare performance claims against measured baselines. Never claim checks or
+  improvements that were not performed or observed.
+- Report failed or unavailable checks and material residual risks. Mention
+  successful verification in completion summaries only when useful, not as
+  routine boilerplate.
 
 ## Git Commits
 
-- Use Conventional Commits: `type(scope): short imperative summary` (scope
-  optional).
-- Prefer `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `chore`,
-  or `revert`. Keep the subject lowercase after the prefix, ideally under 50
-  characters and never over 72. No trailing period.
-- Describe the change, not the process. Use a body only when essential to
-  explain why, a breaking change, or migration requirements.
-- Avoid vague subjects, validation summaries, boilerplate, and agent attribution.
-- Stage only relevant files. Commit, push, or open a PR only when requested or
-  explicitly required by the established workflow.
+- Use Conventional Commits: `type(scope): imperative summary` (scope optional).
+  Prefer `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `chore`,
+  or `revert`. Use lowercase after the prefix, aim for 50 characters or fewer,
+  never exceed 72, and omit the trailing period.
+- Describe what changed, not the development process. Add a body only when
+  necessary to explain why, breaking behavior, or migration requirements.
+  Avoid vague subjects, validation summaries, boilerplate, and agent attribution.
+- Stage only relevant files and review the staged diff before committing.
+  Commit, push, or open a PR only when requested or required by an established
+  authorized workflow. Never force-push without authorization.
 
 ## Pull Requests
 
-- Use a concise, change-focused title, preferably in Conventional Commit format.
-- Use this description structure, omitting any section that adds no value:
+- Write a short, change-focused title, preferably in Conventional Commit form.
+- For nontrivial changes, use this format; omit sections without useful content:
 
   ```markdown
   ## Summary
   1-3 sentences explaining what changed and why.
 
   ## Changes
-  - Significant user-facing or architectural change
+  - Significant functional or architectural change
   - Another substantive change, if needed
   ```
 
-- Keep the description proportional to the diff. Focus on behavior and impact,
-  not an implementation diary.
-- Do not add Testing, Validation, Verification, or Test Plan sections, test
-  commands, checklists, or generic quality claims unless explicitly requested.
-- Include breaking changes, required migrations, or compatibility implications
-  when relevant. Do not claim changes unsupported by the diff.
+- A single concise paragraph is enough for trivial changes. Focus on behavior
+  and impact, not implementation diaries or promotional claims.
+- Do not add Testing, Validation, Verification, or Test Plan sections, commands,
+  checklists, or generic quality claims unless requested or required by the
+  repository's PR policy.
+- Mention breaking changes, migration steps, or compatibility implications when
+  relevant. Make only claims supported by the actual diff.
 
-## Communication
+## Communication and Tools
 
-- Be direct and concise. Explain important decisions and tradeoffs, not routine
-  actions. Use audit skills when applicable; ordinary work does not require
-  loading every skill or delegating to other agents.
-- At completion, summarize the outcome, actual verification, and any unresolved
-  issues briefly. Do not repeat the same information across sections.
+- Be direct and concise. Explain consequential decisions and tradeoffs, not
+  routine actions. Use specialized skills or delegate only when materially useful.
+- At completion, briefly state the outcome and any important unresolved issues.
+  Avoid repetitive status reports and unnecessary documentation.
