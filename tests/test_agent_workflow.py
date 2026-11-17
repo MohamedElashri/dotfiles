@@ -57,7 +57,7 @@ class AgentWorkflowTests(unittest.TestCase):
 
     def install(self, home, platform, *args, check=True):
         return self.run_command(home, 'bash', str(ROOT / 'install.sh'),
-                                '--profile', 'personal', '--platform', platform, *args, check=check)
+                                '--platform', platform, *args, check=check)
 
     def assert_links(self, home):
         self.assertFalse((home / '.codex').is_symlink())
@@ -71,7 +71,7 @@ class AgentWorkflowTests(unittest.TestCase):
                 self.assertFalse((path / 'SKILL.md').is_symlink())
             self.assertEqual(manifest(path).read_bytes(), manifest(ROOT / source).read_bytes())
 
-    def test_personal_platform_matrix(self):
+    def test_platform_matrix(self):
         source_before = {source: manifest(ROOT / source).read_bytes() for source in LINKS.values()}
         for platform in ('linux', 'mac'):
             with self.subTest(platform=platform):
@@ -145,25 +145,25 @@ class AgentWorkflowTests(unittest.TestCase):
                 self.install(home, platform)
                 self.assertEqual(snapshot(home), installed)
 
-    def test_agents_only_preserves_unrelated_configuration_and_migrations(self):
+    def test_agents_only_preserves_unrelated_configuration(self):
         for platform in ('linux', 'mac'):
             with self.subTest(platform=platform):
                 home = self.home(platform)
                 protected = {
                     '.bashrc': b'User shell configuration\n',
-                    '.config/dotfiles/site.bash': b'Existing site hook\n',
-                    '.environment.local.zsh': b'Legacy override\n',
+                    '.config/dotfiles/local.bash': b'Local shell override\n',
+                    '.config/dotfiles/local.env.zsh': b'Local environment\n',
                     '.ssh/config': b'User SSH configuration\n',
                 }
                 for target, content in protected.items():
                     path = home / target
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(content)
-                legacy = {
+                other_links = {
                     '.waveterm/config': ROOT / 'config/terminals/waveterm/config',
-                    'aliases.zsh': ROOT / 'zsh/aliases.zsh',
+                    'readme-shortcut': ROOT / 'README.md',
                 }
-                for target, source in legacy.items():
+                for target, source in other_links.items():
                     path = home / target
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.symlink_to(source)
@@ -183,7 +183,7 @@ class AgentWorkflowTests(unittest.TestCase):
                 self.assertFalse((home / '.dotfiles-backup').exists())
                 self.assertEqual((home / '.ssh').stat().st_mode, ssh_mode)
                 after = snapshot(home)
-                for target in protected.keys() | legacy.keys():
+                for target in protected.keys() | other_links.keys():
                     self.assertEqual(after[target], before[target], target)
                 self.install(home, platform, '--agents-only', '--status')
                 self.install(home, platform, '--agents-only', '--check-existing')
@@ -218,31 +218,6 @@ class AgentWorkflowTests(unittest.TestCase):
                         if state != 'missing':
                             path.unlink()
                         path.symlink_to(ROOT / source)
-
-    def test_legacy_manifest_links_migrate_with_backups(self):
-        for platform in ('linux', 'mac'):
-            home = self.home(platform)
-            for target, source in LINKS.items():
-                if source == 'agent-workflow/AGENTS.md':
-                    continue
-                folder = home / target
-                folder.mkdir(parents=True)
-                (folder / 'SKILL.md').symlink_to(ROOT / source / 'SKILL.md')
-            before = snapshot(home)
-            self.install(home, platform, '--check-existing')
-            self.install(home, platform, '--dry-run')
-            self.assertEqual(snapshot(home), before)
-            self.install(home, platform)
-            self.assert_links(home)
-            for target, source in LINKS.items():
-                if source == 'agent-workflow/AGENTS.md':
-                    continue
-                backups = list(home.glob('.dotfiles-backup/*/' + target + '/SKILL.md'))
-                self.assertEqual(len(backups), 1)
-                self.assertEqual(backups[0].readlink(), ROOT / source / 'SKILL.md')
-            installed = snapshot(home)
-            self.install(home, platform)
-            self.assertEqual(snapshot(home), installed)
 
     def test_skill_sidecars_are_preserved_by_refusing_directory_replacement(self):
         for platform in ('linux', 'mac'):
@@ -284,16 +259,6 @@ class AgentWorkflowTests(unittest.TestCase):
         self.assertEqual(snapshot(external), before)
         self.assert_links(home)
 
-    def test_unsupported_minimal_profile_makes_no_changes(self):
-        for platform in ('linux', 'mac'):
-            home = self.home(platform)
-            for option in ('--dry-run', '--list', '--manifest', '--status', '--check-existing', ''):
-                args = ('--profile', 'minimal', *([option] if option else []))
-                result = self.install(home, platform, *args, check=False)
-                self.assertEqual(result.returncode, 2)
-                self.assertIn('only personal is supported', result.stderr)
-                self.assertEqual(snapshot(home), {})
-
     def test_unsafe_agent_parents_are_refused_before_any_installation(self):
         parents = AGENT_PARENTS
         for platform in ('linux', 'mac'):
@@ -321,7 +286,7 @@ class AgentWorkflowTests(unittest.TestCase):
                             args = [option] if option else []
                             result = self.install(home, platform, *args, check=False)
                             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-                            self.assertIn('Blocked agent parent: ' + str(parent), result.stderr)
+                            self.assertIn('Blocked configuration parent: ' + str(parent), result.stderr)
                             self.assertEqual(snapshot(home), before)
                             self.assertEqual(snapshot(external), external_before)
 
@@ -374,7 +339,7 @@ class AgentWorkflowTests(unittest.TestCase):
                 try:
                     result = self.install(home, 'linux', check=False)
                     self.assertEqual(result.returncode, 1)
-                    self.assertIn('Blocked agent parent: ' + str(parent), result.stderr)
+                    self.assertIn('Blocked configuration parent: ' + str(parent), result.stderr)
                     self.assertFalse((home / '.bashrc').exists())
                 finally:
                     parent.chmod(0o755)
@@ -398,7 +363,7 @@ class AgentWorkflowTests(unittest.TestCase):
                         for option in ('--dry-run', '--check-existing', ''):
                             result = self.install(home, platform, *([option] if option else []), check=False)
                             self.assertEqual(result.returncode, 1)
-                            self.assertIn('Agent path is not writable: ' + str(blocked), result.stderr)
+                            self.assertIn('Configuration path is not writable: ' + str(blocked), result.stderr)
                             self.assertEqual(snapshot(home), before)
                     finally:
                         blocked.chmod(0o755)

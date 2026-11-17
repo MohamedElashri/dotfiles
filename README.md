@@ -1,13 +1,11 @@
 # dotfiles
 
-Personal Linux/macOS configuration for shells, Git, SSH, editors, terminals,
-and shared coding-agent instructions and audit skills. Installed files link to
-this checkout; keep it in place.
+Personal Linux/macOS configuration for Bash, Zsh, Git, SSH, editors, terminals,
+and coding agents. Installed files link to this checkout; keep it in place.
 
 ## Setup
 
-Clone this repository (or unpack the [ZIP download](https://github.com/MohamedElashri/dotfiles/archive/refs/heads/main.zip)),
-then run as your normal user:
+Run as your normal user:
 
 ```bash
 git clone --filter=blob:none --depth=1 https://github.com/MohamedElashri/dotfiles.git ~/projects/dotfiles
@@ -16,31 +14,33 @@ cd ~/projects/dotfiles
 ./bin/dotfiles bootstrap
 ```
 
-Bootstrap installs system prerequisites, [Homebrew](https://docs.brew.sh/Installation),
-CLI/development tools, pinned shell/editor assets, all fonts in `setup/fonts.json`,
-selected GUI apps, configuration links, and Git hooks. It also selects Zsh as your
-login shell. Missing Python is bootstrapped too; its absence limits the preview
-to a stage overview. Administrator authentication may be requested.
+Bootstrap provisions system prerequisites, Homebrew packages, pinned shell/editor
+assets, fonts, desktop apps, configuration links, and repository hooks. It also
+selects Zsh as your login shell. Downloads need internet access; privileged
+steps may request administrator authentication. Missing Python is bootstrapped
+first, which limits the preview to a stage overview until Python is available.
 
-Automatic provisioning targets Apple Silicon macOS 15+ and current Debian/Ubuntu
-derivatives or Fedora. Linux GUI packages require x86_64 and an existing desktop:
-Kitty, native [1Password](https://support.1password.com/install-linux/),
-[VS Code](https://code.visualstudio.com/docs/setup/linux), and
-[Zed](https://zed.dev/docs/installation). Mac apps are listed in `setup/mac-apps.txt`.
-Installed formulas and GUI apps are skipped; native dependencies may be updated.
-Downloads require internet access. GPU drivers, account sign-ins, and enabling
-the 1Password SSH agent remain device-local.
+Automatic setup supports Apple Silicon macOS 15+, Debian/Ubuntu derivatives, and
+Fedora. Linux desktop apps require x86_64 and a desktop session. Apps are listed
+in `setup/mac-apps.txt` and `setup/linux-apps.json`. Installed packages/apps are
+kept; native dependencies may be updated. Account sign-ins, GPU drivers, and
+enabling the 1Password SSH agent remain device-local. Log out/in after setup.
 
-For a server, add `--skip-apps --skip-shell`. Other exclusions: `--skip-dev`,
-`--skip-fonts`, `--skip-assets`, or `--skip-packages --skip-apps` for your own
-package manager. `--fonts meslo` selects a smaller font set. See
-`./bin/dotfiles bootstrap --help`. Rerun after a failed stage; log out/in afterward.
-Archive downloads work for setup; repository hooks and sync require a Git clone.
+For a server, use `--skip-apps --skip-shell`. Other selections are `--skip-dev`,
+`--skip-fonts`, `--fonts meslo`, `--skip-assets`, or `--skip-packages --skip-apps`
+for preinstalled tools. Run `./bin/dotfiles bootstrap --help` for all options.
 
-For links only, preview `./install.sh --dry-run`, then run `./install.sh`.
-Only the personal profile is supported. Replaced targets are backed up under
-`~/.dotfiles-backup/`. Extra files in skill folders or inaccessible agent
-folders must be reconciled before installation.
+| Install scope | Preview | Install |
+| --- | --- | --- |
+| Configuration links | `./install.sh --dry-run` | `./install.sh` |
+| Agent instructions and audit skills | `./install.sh --agents-only --dry-run` | `./install.sh --agents-only` |
+
+Replaced files are backed up under `~/.dotfiles-backup/`. Put wanted device
+settings in the local overrides below. Parent directories must be real,
+searchable directories; resolve symlinks or conflicts before installation.
+Skill directories with extra user files also require manual reconciliation.
+A [ZIP download](https://github.com/MohamedElashri/dotfiles/archive/refs/heads/main.zip)
+works for setup; hooks and sync require a Git clone.
 
 ## Daily use
 
@@ -51,109 +51,58 @@ dotfiles sync --dry-run
 dotfiles sync
 ```
 
-Use `./bin/dotfiles` if the command is not on PATH yet. Sync requires a clean
-tracking branch and refuses replaced links or divergent history. Missing links
-are recreated. Use `./install.sh --status` to inspect drift; preserve desired
-edits before reinstalling. Rerun the installer after moving the checkout.
+Use `./bin/dotfiles` until it is on PATH. Sync requires a clean tracking branch,
+fast-forwards from its upstream, restores missing links, and updates enabled
+shell/editor assets. It stops on replaced links or divergent history. Inspect
+links with `./install.sh --status` (`--agents-only` limits the scope). Preserve
+wanted edits before reinstalling; rerun the installer after moving the checkout.
+Use `dotfiles doctor --online` to include GitHub authentication checks.
 
 ## Customize
 
-Both Bash and Zsh load `shell/interactive.sh`: common shortcuts live in
-`shell/aliases.sh`, and helpers are grouped under `shell/functions/` by archives,
-files, development, Docker, network, and system. Native OS adapters live in
-`platform/linux/` and `platform/mac/`; shell hooks stay in `bash/` and `zsh/`.
-Optional-tool aliases appear when their commands are available. `list_commands`
-shows loaded shortcuts/helpers. `ll`, `la`, and `ports` now match across shells;
-`update`/`upgrade` manage Homebrew on both OSes, while `mac-update` updates macOS.
+| Location | Purpose |
+| --- | --- |
+| `shell/aliases.sh`, `shell/functions/` | Shared CLI shortcuts and helpers |
+| `bash/`, `zsh/` | Shell startup and tool integration |
+| `platform/linux/`, `platform/mac/` | Native command variants |
+| `config/` | Application preferences, Git, and SSH |
+| `setup/` | Packages, apps, pinned assets, and fonts |
+| [`agent-workflow/AGENTS.md`](agent-workflow/AGENTS.md) | Shared coding-agent defaults |
 
-App preferences live in `config/`. Package, plugin, and font choices live in
-`setup/`; `dotfiles fonts --list` lists available font families.
-After changing Waveterm source preferences or `setup/assets.json`, run
-`dotfiles render` and keep the generated outputs too.
+Both shells load `shell/interactive.sh`; `list_commands` lists available helpers.
+Optional-tool shortcuts load when their commands are installed. Run
+`dotfiles render` after changing Waveterm source settings or `setup/assets.json`
+and keep the generated outputs. Use `dotfiles fonts --list` to inspect families.
 
-Device-only overrides belong in `~/.config/dotfiles/local.bash`, `local.zsh`,
+Device-only overrides live in `~/.config/dotfiles/local.bash`, `local.zsh`,
 `local.env.zsh`, and `local.gitconfig`; examples are in `templates/local/`.
-Keep credentials, keys, history databases, and application runtime state outside Git.
-
-Both platforms read `~/.ssh/config.local`. Temporary routes can live in
-`~/.ssh/config.hep.local`, included from the top of `config.local`:
-
-```sshconfig
-Include ~/.ssh/config.hep.local
-
-Host *
-```
-
-Keep private SSH files mode 600. Comment/remove the include to disable those
-routes; `ssh -G <alias>` checks effective settings without connecting.
+Keep credentials, keys, account state, and history outside Git. Both platforms
+include `~/.ssh/config.local`; keep it mode 600. Additional SSH fragments can be
+included there before `Host *`. Check effective settings with `ssh -G <alias>`.
 
 ## Coding agents
 
-Edit [`agent-workflow/AGENTS.md`](agent-workflow/AGENTS.md) to change personal
-development defaults for every supported harness. It covers scoped changes,
-local planning, verification, Conventional Commits, concise PR descriptions,
-and communication. This is the single shared source: edit it here, then start
-new agent sessions to pick up changes. Once installed, the symlinks expose edits
-directly; you do not need to reinstall after changing the content. Each harness
-receives the same file at its native global instruction path:
+Edit [`agent-workflow/AGENTS.md`](agent-workflow/AGENTS.md) here to change global
+development defaults, then start new agent sessions. All four harnesses link to
+that one file, so content edits need no reinstall.
 
-| Harness | Installed instruction file | Loading reference |
-| --- | --- | --- |
-| Codex | `~/.codex/AGENTS.md` | [AGENTS.md guide](https://developers.openai.com/codex/guides/agents-md/) |
-| Claude Code | `~/.claude/CLAUDE.md` | [Memory guide](https://code.claude.com/docs/en/memory) |
-| OpenCode | `~/.config/opencode/AGENTS.md` | [Instructions](https://opencode.ai/docs/instructions/), [V1 rules](https://opencode.ai/v1/docs/rules/) |
-| pi | `~/.pi/agent/AGENTS.md` | [Context files](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#context-files) |
+| Harness | Global instruction file |
+| --- | --- |
+| [Codex](https://developers.openai.com/codex/guides/agents-md/) | `~/.codex/AGENTS.md` |
+| [Claude Code](https://code.claude.com/docs/en/memory) | `~/.claude/CLAUDE.md` |
+| [OpenCode](https://opencode.ai/docs/instructions/) | `~/.config/opencode/AGENTS.md` |
+| [pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#context-files) | `~/.pi/agent/AGENTS.md` |
 
-Install just agent instructions and the two existing audit skills on Linux or
-macOS, without changing shell or application configuration:
+The installer uses these default locations. Custom harness homes require manual
+links to the same source at the harness's documented instruction path. Repository
+instructions and harness overrides can change which guidance applies; inspect
+loaded context if defaults are missing. `--status` verifies links only.
 
-```bash
-./install.sh --agents-only --dry-run
-./install.sh --agents-only
-./install.sh --agents-only --status
-```
-
-The regular installer/bootstrap also includes these links. Existing destination
-files are moved to `~/.dotfiles-backup/<run>/<original-path>` before replacement;
-review or merge any personal instructions from those backups. Repeat installs
-leave correct links alone. Provider settings, credentials, sessions, plugins,
-and unrelated skills stay local. Parent symlinks and inaccessible agent folders
-must be reconciled before installation. No harness installation, account setup,
-or web synchronization is performed. Keep this checkout in place and start new
-agent sessions after setup or edits.
-
-The installer targets the default paths above, regardless of environment
-overrides. If you use `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `PI_CODING_AGENT_DIR`, or
-a custom OpenCode configuration location, use the harness's documentation to
-locate its effective global instruction file and link that file manually. For
-example, for an existing custom Codex profile:
-
-```bash
-: "${CODEX_HOME:?Set CODEX_HOME to your custom absolute profile directory}"
-mkdir -p "$CODEX_HOME"
-ln -s "$PWD/agent-workflow/AGENTS.md" "$CODEX_HOME/AGENTS.md"
-```
-
-Run this from the checkout with `CODEX_HOME` set to the intended absolute path;
-`ln -s` refuses an existing file, which you should review and back up first.
-For another harness, use the same source with its documented user instruction
-filename. A bare `~/AGENTS.md` is not a universal global configuration, and
-Markdown `@` imports are not supported by every harness.
-
-Repository and directory instructions refine these defaults according to each
-harness's loading rules. Codex's `AGENTS.override.md` can replace the global
-file; the installer preserves it. pi also supports override files in current
-versions and can disable context loading. Check those controls if guidance is
-missing. Use Claude Code's `/memory` to inspect loaded files; for other harnesses,
-check their context diagnostics and ask a new session to summarize its active
-instructions. `--status` checks links, not whether a model follows the rules.
-
-The two shared skill folders link into `~/.agents/skills/` and `~/.claude/skills/`.
-Use `$research-audit` / `$engineering-audit` in Codex, or
-`/research-audit` / `/engineering-audit` in Claude Code. Audits are read-only
-unless edits are authorized. Skill discovery in other harnesses depends on
-their version and configuration; instruction-file support is independent.
-Project agent guidance is visible to Git: inspect new files before adding them.
+Audit skills link into `~/.agents/skills/` and `~/.claude/skills/`. Invoke
+`$research-audit` / `$engineering-audit` in Codex, or `/research-audit` /
+`/engineering-audit` in Claude Code. Audits are read-only unless edits are
+authorized. Harness binaries, credentials, settings, sessions, and unrelated
+skills stay local. Review project agent guidance before adding it to Git.
 
 ## Checks
 
@@ -164,5 +113,6 @@ python3 scripts/render_configs.py --check
 git diff --check
 ```
 
-Tests require Git, Python, Bash, Zsh, and SSH, and use disposable homes and local
-Git remotes. Commit/push hooks scan private data; custom hook paths must chain them.
+Tests require Git, Python, Bash, Zsh, and SSH. They use temporary homes, local Git
+remotes, and mocked platform/tool operations. Commit/push hooks scan private data;
+chain them manually when using a custom Git hooks path.

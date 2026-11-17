@@ -1,6 +1,5 @@
 # File and directory helpers shared by Bash and Zsh.
 
-unalias count 2>/dev/null || true
 count() {
   [ "$#" -eq 0 ] || { echo 'Usage: count (recursive files in the current directory)' >&2; return 2; }
   # NUL delimiters handle every filename; pipefail is confined to a subshell.

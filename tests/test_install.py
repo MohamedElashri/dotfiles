@@ -37,7 +37,7 @@ class InstallTests(unittest.TestCase):
         return result
 
     def test_dry_run_all_platforms(self):
-        for args in [(), ('--platform', 'mac'), ('--profile', 'personal')]:
+        for args in [('--platform', 'linux'), ('--platform', 'mac')]:
             self.install(*args, '--dry-run')
             self.assertEqual([p.name for p in self.home.iterdir()], ['test-bin'])
 
@@ -48,11 +48,11 @@ class InstallTests(unittest.TestCase):
         backups = list(self.home.glob('.dotfiles-backup/*/.zshrc'))
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_text(), '# previous settings\n')
-        self.assertEqual((self.home/'.config/dotfiles/site.bash').read_text(), 'export SITE_PRESERVED=yes\n')
+        self.assertEqual(list(self.home.glob('.dotfiles-backup/*/.bashrc'))[0].read_text(), 'export SITE_PRESERVED=yes\n')
         before = sorted(str(p) for p in self.home.glob('.dotfiles-backup/**/*'))
         self.install()
         self.assertEqual(before, sorted(str(p) for p in self.home.glob('.dotfiles-backup/**/*')))
-        result = self.run_cmd('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic', 'test "$SITE_PRESERVED" = yes')
+        result = self.run_cmd('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic', 'test -z "${SITE_PRESERVED-}"')
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_shell_startup_and_local_overrides(self):
@@ -121,7 +121,7 @@ class InstallTests(unittest.TestCase):
 
     def test_mac_profile_loads_linked_bash_config(self):
         self.install('--platform', 'mac')
-        self.assertEqual((self.home/'.profile').resolve(), ROOT/'config/mac/shell/.profile')
+        self.assertEqual((self.home/'.profile').resolve(), ROOT/'shell/.profile')
         result = self.run_cmd('bash', '--noprofile', '-ic', '. "$HOME/.profile"; test "$DOTFILES_ROOT" = "'+str(ROOT)+'" && alias ll >/dev/null')
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -153,66 +153,30 @@ class InstallTests(unittest.TestCase):
         self.assertIn('Detached: '+str(config), result.stdout)
         self.assertEqual(config.read_text(), 'editor: micro\n')
 
-    def test_retired_environment_does_not_load_cluster_settings(self):
-        self.install()
-        env = dict(self.env, DOTFILES_PROFILE='hep', DOTFILES_MACHINE='lxplus901')
-        command = 'for name in lhcb cern mount_gpu afs proxy; do if alias "$name" >/dev/null 2>&1; then exit 1; fi; done'
-        for shell_args in [('bash', '--noprofile', '--rcfile', str(self.home/'.bashrc'), '-ic'),
-                           ('zsh', '-ic')]:
-            result = self.run_cmd(*shell_args, command, env=env)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn('command not found', result.stderr)
-            self.assertNotIn('syntax error', result.stderr)
-
-    def test_legacy_cleanup_preserves_unmanaged_files(self):
-        (self.home/'config.zsh').symlink_to(ROOT/'zsh/config.zsh')
-        (self.home/'plugins.zsh').write_text('# mine\n')
-        self.install()
-        self.assertFalse((self.home/'config.zsh').is_symlink())
-        self.assertEqual((self.home/'plugins.zsh').read_text(), '# mine\n')
-        self.assertEqual(len(list(self.home.glob('.dotfiles-backup/*/config.zsh'))), 1)
-
     def test_mac_shell_startup_with_mock_os(self):
         fake = self.home/'test-bin'
         uname = fake/'uname'
         uname.write_text('#!/bin/sh\necho Darwin\n')
         uname.chmod(0o755)
-        env = dict(self.env, PATH=str(fake)+':/usr/bin:/bin', ATUIN_CONFIG_DIR='/legacy/atuin')
+        env = dict(self.env, PATH=str(fake)+':/usr/bin:/bin')
         self.install('--platform', 'mac')
-        result = self.run_cmd('zsh', '-ic', "[[ ${aliases[ports]} == 'lsof -nP -iTCP -sTCP:LISTEN' && -z ${ATUIN_CONFIG_DIR-} ]]", env=env)
+        result = self.run_cmd('zsh', '-ic', "[[ ${aliases[ports]} == 'lsof -nP -iTCP -sTCP:LISTEN' ]]", env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn('command not found', result.stderr)
 
-    def test_retired_profile_link_migrates_to_personal(self):
+    def test_local_environment_loads_before_interactive_overrides(self):
         config = self.home/'.config/dotfiles'
         config.mkdir(parents=True)
-        (config/'profile').symlink_to(ROOT/'setup/profiles/hep')
-        self.install('--dry-run')
-        self.assertEqual((config/'profile').readlink(), ROOT/'setup/profiles/hep')
+        environment = config/'local.env.zsh'
+        environment.write_text('export ZSH_THEME=custom-test\n')
+        override = config/'local.zsh'
+        override.write_text('alias ll="echo current"\n')
         self.install()
-        self.assertEqual((config/'profile').read_text(), 'personal\n')
-        self.assertTrue((self.home/'.zshrc').is_symlink())
-        self.assertTrue(list(self.home.glob('.dotfiles-backup/*/.config/dotfiles/profile')))
-        self.assertEqual(self.run_cmd('bash', str(ROOT/'install.sh'), '--status').returncode, 0)
-
-    def test_local_override_migration_and_early_environment(self):
-        config = self.home/'.config/dotfiles'
-        config.mkdir(parents=True)
-        old = config/'environment.local.zsh'
-        old.write_text('export ZSH_THEME=custom-test\n')
-        (config/'zshrc.local.zsh').write_text('alias ll="echo old"\n')
-        (config/'local.zsh').write_text('alias ll="echo current"\n')
-        self.install('--dry-run')
-        self.assertTrue(old.exists())
-        self.assertFalse((config/'local.env.zsh').exists())
-        self.install()
-        self.assertFalse(old.exists())
-        self.assertTrue(list(self.home.glob('.dotfiles-backup/*/.config/dotfiles/environment.local.zsh')))
         result = self.run_cmd('zsh', '-ic', '[[ $ZSH_THEME == custom-test && ${aliases[ll]} == "echo current" ]]')
         self.assertEqual(result.returncode, 0, result.stderr)
-        current = (config/'local.zsh').read_text()
         self.install()
-        self.assertEqual((config/'local.zsh').read_text(), current)
+        self.assertEqual(environment.read_text(), 'export ZSH_THEME=custom-test\n')
+        self.assertEqual(override.read_text(), 'alias ll="echo current"\n')
 
     def test_lazy_nvm_without_completion_script(self):
         nvm = self.home/'.nvm'
@@ -229,13 +193,6 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), str(ROOT/'bin/terminal_quran.sh'))
         self.assertEqual(result.stderr, '')
-
-    def test_existing_dangling_profile_is_migrated(self):
-        (self.home/'.profile').symlink_to(ROOT/'sh/.profile')
-        (self.home/'cli').symlink_to(ROOT/'cli')
-        self.install()
-        self.assertEqual((self.home/'.profile').resolve(), ROOT/'shell/.profile')
-        self.assertFalse((self.home/'cli').is_symlink())
 
     def test_get_size_preserves_apparent_file_size(self):
         self.install()
@@ -267,7 +224,7 @@ class InstallTests(unittest.TestCase):
         commands.mkdir()
         for name in ('uname', 'du', 'stat', 'awk'):
             (commands/name).symlink_to(shutil.which(name))
-        env = dict(self.env, PATH=str(commands), LC_ALL='C')
+        env = dict(self.env, PATH=str(commands), LC_ALL='C', DOTFILES_ROOT=str(ROOT))
         target = self.home/'size sample'
         for size, expected in [(1536, '1.50 KB'), (1572864, '1.50 MB'), (1610612736, '1.50 GB')]:
             with self.subTest(size=size):
@@ -275,30 +232,19 @@ class InstallTests(unittest.TestCase):
                     stream.truncate(size)
                 result = self.run_cmd(shutil.which('zsh'), '-f', '-c',
                                       'source "$1"; get_size "$2"', 'size-check',
-                                      str(ROOT/'zsh/functions.zsh'), str(target), env=env)
+                                      str(ROOT/'shell/functions.sh'), str(target), env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stderr, '')
                 self.assertEqual(result.stdout.strip(), f"Size of '{target}': {expected}")
 
-    def test_saved_profile_without_final_newline(self):
-        config = self.home/'.config/dotfiles'
-        config.mkdir(parents=True)
-        (config/'profile').write_text('hep')
-        result = self.run_cmd('bash', str(ROOT/'install.sh'), '--check-existing')
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.install()
-        self.assertEqual((config/'profile').read_text(), 'personal\n')
-        self.assertTrue((self.home/'.zshrc').is_symlink())
-
     def test_reinstall_after_checkout_moves(self):
-        scenarios = [('personal', 'linux', False), ('retired', 'linux', False),
-                     ('personal', 'mac', False), ('personal', 'linux', True)]
-        for profile, platform, aliased in scenarios:
-            with self.subTest(previous_profile=profile, platform=platform, aliased=aliased):
+        scenarios = [('linux', False), ('linux', True), ('mac', False), ('mac', True)]
+        for platform, aliased in scenarios:
+            with self.subTest(platform=platform, aliased=aliased):
+                label = f'{platform}-{aliased}'
                 base = self.home
-                label = f'{profile} {platform} {aliased}'
                 if aliased:
-                    base = self.home/'home alias'
+                    base = self.home/f'home alias {platform}'
                     base.symlink_to(self.home, target_is_directory=True)
                 original = base/f'original checkout {label}'
                 moved = base/f'moved checkout {label}'
@@ -308,17 +254,13 @@ class InstallTests(unittest.TestCase):
                 env = dict(self.env, HOME=str(target_home), ZDOTDIR=str(target_home))
                 result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                if profile == 'retired':
-                    marker = target_home/'.config/dotfiles/profile'
-                    marker.unlink()
-                    marker.symlink_to(original/'setup/profiles/hep')
                 original.rename(moved)
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--check-existing', env=env)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), 'personal')
-                expected_profile = moved/('config/mac/shell/.profile' if platform == 'mac' else 'shell/.profile')
+                expected_profile = moved/'shell/.profile'
                 self.assertEqual((target_home/'.profile').resolve(), expected_profile.resolve())
                 self.assertEqual((target_home/'.bashrc').resolve(), (moved/'bash/.bashrc').resolve())
                 for target, source in [('.codex/AGENTS.md', 'agent-workflow/AGENTS.md'),
@@ -330,13 +272,12 @@ class InstallTests(unittest.TestCase):
                                      (moved/'agent-workflow/skills'/name/'SKILL.md').resolve(strict=True))
                 result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--status', env=env)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                self.assertFalse((target_home/'.config/dotfiles/site.bash').exists())
                 result = self.run_cmd('sh', '-c', '. "$HOME/.profile"; command -v terminal_quran.sh', env=env)
                 self.assertEqual(Path(result.stdout.strip()).resolve(), (moved/'bin/terminal_quran.sh').resolve())
                 self.assertEqual(result.stderr, '')
 
     def test_invalid_arguments_make_no_changes(self):
-        for args in [('--profile', '../other'), ('--profile',), ('--profile', 'hep'), ('--copy',), ('--platform','mac','--profile','hep')]:
+        for args in [('--profile', 'personal'), ('--platform',), ('--platform', 'unknown'), ('--unknown',)]:
             result = self.run_cmd('bash', str(ROOT/'install.sh'), *args)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual([p.name for p in self.home.iterdir()], ['test-bin'])

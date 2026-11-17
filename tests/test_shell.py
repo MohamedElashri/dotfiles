@@ -625,11 +625,6 @@ esac''')
                 self.assertIn('50.0 C', result.stdout)
                 self.assertIn('40.0 C', result.stdout)
 
-    def test_legacy_aliases_can_be_reloaded_into_functions(self):
-        for shell in SHELLS:
-            result = self.run_shell(shell, 'alias showdisk="echo old"; alias mycpu="echo old"; alias showmem="echo old"\n. "$DOTFILES_ROOT/shell/interactive.sh"\ntypeset -f showdisk >/dev/null; typeset -f mycpu >/dev/null; typeset -f showmem >/dev/null')
-            self.assert_success(result)
-
     def test_local_overrides_still_win_in_installed_shells(self):
         config = self.home / '.config/dotfiles'
         config.mkdir(parents=True)

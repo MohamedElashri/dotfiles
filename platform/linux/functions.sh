@@ -86,7 +86,6 @@ trash() {
   fi
 }
 
-unalias showmem 2>/dev/null || true
 showmem() {
   printf 'The current memory usage is: '
   awk '/MemTotal|MemAvailable/ {

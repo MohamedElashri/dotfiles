@@ -33,7 +33,8 @@ class BootstrapTests(unittest.TestCase):
         args = self.args('--skip-dev', '--skip-apps', '--skip-fonts', '--skip-shell')
         self.assertFalse(args.dev)
         self.assertTrue(args.skip_apps and args.skip_fonts and args.skip_shell)
-        for options in [('--fonts', 'meslo', '--skip-fonts'), ('--fonts',), ('--unknown',)]:
+        for options in [('--fonts', 'meslo', '--skip-fonts'), ('--fonts',),
+                        ('--unknown',), ('--apps',), ('--dev',)]:
             with self.subTest(options=options), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 self.args(*options)
 
@@ -47,6 +48,15 @@ class BootstrapTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'supports Debian/Ubuntu'):
             workflow.linux_manager(release)
         self.assertFalse((self.home / 'unexpected').exists())
+
+    def test_invalid_asset_settings_fail_before_provisioning(self):
+        marker = self.home / '.config/dotfiles/features.json'
+        marker.parent.mkdir(parents=True)
+        marker.write_text('{"assets": ["unknown"]}\n')
+        with mock.patch.object(workflow, 'run') as execute, \
+                self.assertRaisesRegex(RuntimeError, 'Invalid enabled asset groups'):
+            workflow.bootstrap(self.args('--dry-run', '--skip-apps'))
+        execute.assert_not_called()
 
     def test_wrong_platform_root_and_incompatible_flags_fail_before_commands(self):
         for options, uid, actual, message in [

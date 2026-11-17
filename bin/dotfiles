@@ -38,8 +38,7 @@ if [ "$python_ready" = 0 ]; then
       --dry-run) preview=1; font_mode=0 ;;
       --skip-fonts) skip_fonts=1; font_mode=0 ;;
       --skip-apps) skip_apps=1; font_mode=0 ;;
-      --apps) skip_apps=0; font_mode=0 ;;
-      --skip-assets|--skip-dev|--skip-shell|--dev) font_mode=0 ;;
+      --skip-assets|--skip-dev|--skip-shell) font_mode=0 ;;
       --platform) shift; case "${1:-}" in linux|mac) platform_args=(--platform "$1") ;; *) echo 'Use --platform linux|mac' >&2; exit 2 ;; esac; font_mode=0 ;;
       --fonts) font_mode=1; selected_fonts=1; [ "$#" -gt 1 ] && [[ "$2" != --* ]] || { echo '--fonts requires a family.' >&2; exit 2; } ;;
       --*) echo "Unknown bootstrap option: $1" >&2; exit 2 ;;

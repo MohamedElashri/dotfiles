@@ -1,6 +1,5 @@
 # Development, editor selection, and Git helpers.
 
-unalias edit_host 2>/dev/null || true
 edit_host() {
   local editor
   # sudo needs an executable path, not the description of a shell alias/function.

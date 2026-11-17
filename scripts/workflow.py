@@ -102,10 +102,9 @@ def resource_path(home, relative):
 def enabled_assets():
     path = Path.home() / '.config/dotfiles/features.json'
     groups = json.loads(path.read_text()).get('assets', []) if path.is_file() else []
-    if not isinstance(groups, list) or any(group not in ('shell', 'editors', 'ai') for group in groups):
+    if not isinstance(groups, list) or any(group not in ('shell', 'editors') for group in groups):
         raise RuntimeError('Invalid enabled asset groups in ~/.config/dotfiles/features.json.')
-    # Older feature markers may still contain the retired group.
-    return [group for group in groups if group != 'ai']
+    return groups
 
 
 def remember_assets(groups):
@@ -304,6 +303,7 @@ def bootstrap(args):
     unknown_fonts = set(selected_fonts) - read_json('setup/fonts.json').keys()
     if unknown_fonts:
         raise RuntimeError('Unknown font families: ' + ', '.join(sorted(unknown_fonts)))
+    previous_groups = enabled_assets() if not args.skip_assets else []
     check_rendered()
     # Also runs in the Python-free entry point before first-stage provisioning.
     # The second check includes any frameworks created during setup.
@@ -320,7 +320,7 @@ def bootstrap(args):
         brew = (None if cross_preview else brew_command()) or ('brew' if args.dry_run else None)
         if not brew:
             raise RuntimeError('Homebrew installation did not provide brew; rerun bootstrap after resolving the installer error.')
-        selected = packages(f'setup/{platform_name}-packages.txt')
+        selected = packages('setup/packages.txt')
         if args.dev:
             selected += packages('setup/dev-packages.txt')
         # Install missing formulae only. Routine package upgrades are separate.
@@ -357,7 +357,7 @@ def bootstrap(args):
         fonts(argparse.Namespace(families=selected_fonts, list=False, dry_run=args.dry_run,
                                  platform=platform_name))
     if not args.dry_run and not args.skip_assets:
-        remember_assets(enabled_assets() + groups)
+        remember_assets(previous_groups + groups)
     if not args.skip_shell:
         login_shell(args.dry_run)
     print('Bootstrap preview complete.' if args.dry_run else
@@ -392,8 +392,6 @@ def sync(args):
     check_rendered()
     check_existing(platform_name)
     groups = enabled_assets()
-    if getattr(args, 'assets', False):
-        groups += ['shell', 'editors']
     groups = sorted(set(groups))
     if args.check:
         print('Sync preflight passed; no network or installation changes made.')
@@ -439,7 +437,7 @@ def doctor(args):
         report('OK', 'Managed configuration links are intact.')
     command_names = {'python': 'python3', 'git-delta': 'delta', 'helix': 'hx',
                      'neovim': 'nvim', 'ripgrep': 'rg'}
-    for name in packages(f'setup/{platform_name}-packages.txt'):
+    for name in packages('setup/packages.txt'):
         command = command_names.get(name, name)
         if not shutil.which(command) and not (command == 'fd' and shutil.which('fdfind')):
             report('FAIL', f'Missing tool: {command}; install {name} or run dotfiles bootstrap.')
@@ -586,9 +584,7 @@ def parser():
         if name == 'bootstrap':
             command.add_argument('--skip-packages', action='store_true')
             command.add_argument('--skip-assets', action='store_true')
-            command.add_argument('--apps', dest='skip_apps', action='store_false', help=argparse.SUPPRESS)
             command.add_argument('--skip-apps', action='store_true', help='Omit GUI apps (servers/headless hosts)')
-            command.add_argument('--dev', dest='dev', action='store_true', help=argparse.SUPPRESS)
             command.add_argument('--skip-dev', dest='dev', action='store_false', help='Omit development tools')
             command.add_argument('--skip-shell', action='store_true', help='Keep the current login shell')
             font_choice = command.add_mutually_exclusive_group()
@@ -600,7 +596,6 @@ def parser():
             command.add_argument('--strict', action='store_true')
         elif name == 'sync':
             command.add_argument('--check', action='store_true')
-            command.add_argument('--assets', action='store_true', help='Enable shell/editor asset sync on an older installation')
         elif name == 'assets':
             command.add_argument('--group', action='append', choices=('shell', 'editors'))
             command.add_argument('--update', action='store_true')

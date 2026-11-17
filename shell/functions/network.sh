@@ -1,6 +1,5 @@
 # Network, remote-file and upload helpers; network runs only on invocation.
 
-unalias myip 2>/dev/null || true
 myip() {
   [ "$#" -eq 0 ] || { echo 'Usage: myip' >&2; return 2; }
   curl --fail --show-error https://ifconfig.me && printf '\n'

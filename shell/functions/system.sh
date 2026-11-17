@@ -1,8 +1,6 @@
 # Process inspection, information, and temperature helpers.
-unalias showdisk mycpu 2>/dev/null || true
 
 if command -v column >/dev/null 2>&1; then
-  unalias mount 2>/dev/null || true
   mount() {
     if ! command -v column >/dev/null 2>&1; then command mount "$@"; return; fi
     local output
@@ -24,7 +22,6 @@ mycpu() {
 }
 
 if command -v mpstat >/dev/null 2>&1; then
-  unalias showcpu 2>/dev/null || true
   showcpu() {
     local output
     output=$(command mpstat 1 1) || return
@@ -142,7 +139,6 @@ ii() {
 }
 
 
-unalias temps 2>/dev/null
 
 temps() {
     local readings color=0

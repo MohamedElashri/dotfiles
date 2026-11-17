@@ -3,9 +3,8 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 : "${HOME:?HOME must be set}"
-PROFILE=personal
 physical_path() {
-  local candidate=$1 suffix= parent directory normalized
+  local candidate=$1 suffix='' parent directory normalized
   # Resolve existing ancestors even when a moved checkout's leaf no longer
   # exists. macOS aliases /var through /private/var, including temporary homes.
   while [ ! -d "$candidate" ]; do
@@ -25,11 +24,10 @@ link_reference() {
   physical_path "$reference"
 }
 PREVIOUS_ROOT=$ROOT
-# The installed marker records the old checkout even after it has moved.
-# Retired profiles migrate to the personal setup; never load their contents.
+# The installation marker records the source location after a checkout move.
 profile_link=$(link_reference "$HOME/.config/dotfiles/profile" || true)
 case "$profile_link" in
-  /*/setup/profiles/*)
+  /*/setup/profiles/personal)
     PREVIOUS_ROOT=${profile_link%/setup/profiles/*}
     ;;
 esac
@@ -41,19 +39,17 @@ CHECK_EXISTING=0
 AGENTS_ONLY=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal' >&2; exit 2; }; PROFILE=$2; shift ;;
     --platform) [ "$#" -ge 2 ] || exit 2; case "$2" in linux) OS=Linux ;; mac) OS=Darwin ;; *) echo 'Use --platform linux|mac' >&2; exit 2 ;; esac; shift ;;
     --dry-run|-n) DRY_RUN=1 ;;
     --status) STATUS=1 ;;
     --list|--manifest) LIST=1 ;;
     --check-existing) CHECK_EXISTING=1 ;;
     --agents-only) AGENTS_ONLY=1 ;;
-    --help|-h) echo 'Usage: ./install.sh [--profile personal] [--platform linux|mac] [--agents-only] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
+    --help|-h) echo 'Usage: ./install.sh [--platform linux|mac] [--agents-only] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
-case "$PROFILE" in personal) ;; *) echo 'Invalid profile; only personal is supported' >&2; exit 2 ;; esac
 case "$OS" in Linux|Darwin) ;; *) echo "Unsupported OS: $OS" >&2; exit 2 ;; esac
 BACKUP="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)-$$"
 sources=(); targets=()
@@ -62,12 +58,11 @@ add setup/profiles/personal .config/dotfiles/profile
 add bash/.bashrc .bashrc
 # Preserve existing login files; relocate only links owned by this installer.
 profile_source=shell/.profile
-[ "$OS" != Darwin ] || profile_source=config/mac/shell/.profile
 if [ ! -e "$HOME/.profile" ] && [ ! -L "$HOME/.profile" ] && [ ! -e "$HOME/.bash_profile" ] && [ ! -e "$HOME/.bash_login" ]; then
   add "$profile_source" .profile
 elif [ -L "$HOME/.profile" ]; then
   case "$(link_reference "$HOME/.profile" || true)" in
-    "$ROOT/sh/.profile"|"$ROOT/shell/.profile"|"$ROOT/config/mac/shell/.profile"|"$PREVIOUS_ROOT/sh/.profile"|"$PREVIOUS_ROOT/shell/.profile"|"$PREVIOUS_ROOT/config/mac/shell/.profile") add "$profile_source" .profile ;;
+    "$ROOT/shell/.profile"|"$PREVIOUS_ROOT/shell/.profile") add "$profile_source" .profile ;;
   esac
 fi
 add zsh/.zshenv .zshenv
@@ -145,18 +140,17 @@ if [ "$LIST" = 1 ]; then
   for ((i=0; i<${#sources[@]}; i++)); do printf '%s\t%s\n' "${sources[i]}" "${targets[i]}"; done
   exit 0
 fi
-# Agent parent links can redirect a leaf replacement into another checkout or
-# shared skill store. Refuse before any installation/migration writes occur.
+# Parent links can redirect replacements into source or application directories.
+# Require real, searchable parents before any installation writes occur.
 for ((i=0; i<${#sources[@]}; i++)); do
-  case "${sources[i]}" in "$ROOT/agent-workflow/"*) ;; *) continue ;; esac
   parent=${targets[i]%/*}
   while [ "$parent" != "$HOME" ]; do
     if [ -L "$parent" ] || { [ -e "$parent" ] && [ ! -d "$parent" ]; }; then
-      printf 'Blocked agent parent: %s (reconcile symlinks or non-directories manually)\n' "$parent" >&2
+      printf 'Blocked configuration parent: %s (reconcile symlinks or non-directories manually)\n' "$parent" >&2
       exit 1
     fi
     if [ -d "$parent" ] && [ ! -x "$parent" ]; then
-      printf 'Blocked agent parent: %s (directory is not searchable)\n' "$parent" >&2
+      printf 'Blocked configuration parent: %s (directory is not searchable)\n' "$parent" >&2
       exit 1
     fi
     parent=${parent%/*}
@@ -185,13 +179,13 @@ for ((i=0; i<${#sources[@]}; i++)); do
     write_parent=$(dirname "$dest")
     while [ ! -d "$write_parent" ]; do write_parent=$(dirname "$write_parent"); done
     if [ ! -w "$write_parent" ]; then
-      printf 'Agent path is not writable: %s\n' "$write_parent" >&2
+      printf 'Configuration path is not writable: %s\n' "$write_parent" >&2
       exit 1
     fi
     # Moving a real directory to the backup parent requires write access to
     # that directory as well as its current parent on supported platforms.
     if [ -d "$dest" ] && [ ! -L "$dest" ] && [ ! -w "$dest" ]; then
-      printf 'Agent path is not writable: %s\n' "$dest" >&2
+      printf 'Configuration path is not writable: %s\n' "$dest" >&2
       exit 1
     fi
   fi
@@ -216,38 +210,11 @@ if [ "$CHECK_EXISTING" = 1 ]; then
     src=${sources[i]}; dest=${targets[i]}
     [ -e "$dest" ] || [ -L "$dest" ] || continue
     if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then continue; fi
-    # Profile markers are installer metadata, including retired profile names.
-    if [ "$dest" = "$HOME/.config/dotfiles/profile" ]; then
-      if [ -L "$dest" ]; then
-        case "$(link_reference "$dest" || true)" in "$ROOT/setup/profiles/"*|"$PREVIOUS_ROOT/setup/profiles/"*) continue ;; esac
-      elif [ -f "$dest" ]; then
-        saved_profile=
-        IFS= read -r saved_profile < "$dest" || true
-        case "$saved_profile" in personal|hep) continue ;; esac
-      fi
-    fi
-    # Migrate the earlier manifest-file links only when no sibling content
-    # would be displaced (validated above). Unmanaged manifests still conflict.
-    case "$src" in
-      "$ROOT/agent-workflow/skills/"*)
-        if [ -d "$dest" ] && [ ! -L "$dest" ] && [ -L "$dest/SKILL.md" ]; then
-          actual=$(canonical_path "$dest/SKILL.md" || true)
-          expected=$(canonical_path "$src/SKILL.md" || true)
-          if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then continue; fi
-        fi ;;
-    esac
     managed=0
     actual=$(canonical_path "$dest" || true)
     expected=$(canonical_path "$src" || true)
-    if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then
-      if [ -L "$dest" ]; then
-        managed=1
-      else
-        # Only known legacy directory links may supply an ordinary file.
-        for relative in .waveterm/config .config/ghostty; do
-          case "$dest" in "$HOME/$relative/"*) [ ! -L "$HOME/$relative" ] || managed=1 ;; esac
-        done
-      fi
+    if [ -L "$dest" ] && [ -n "$expected" ] && [ "$actual" = "$expected" ]; then
+      managed=1
     fi
     if [ "$managed" = 0 ]; then printf 'Detached: %s\n' "$dest"; conflict=1; fi
   done
@@ -270,80 +237,10 @@ if [ "$STATUS" = 1 ]; then
   [ "$drift" = 0 ] && echo 'All managed files are linked.'
   exit "$drift"
 fi
-printf 'OS: %s | profile: %s | repository: %s\n' "$OS" "$PROFILE" "$ROOT"
+printf 'OS: %s | repository: %s\n' "$OS" "$ROOT"
 run() {
   if [ "$DRY_RUN" = 1 ]; then printf 'Would run:'; printf ' %q' "$@"; printf '\n'; else "$@"; fi
 }
-# Keep an unmanaged pre-existing Bash rc as a site hook, including /etc/bashrc
-# initialization and module definitions. Existing repo links need no hook.
-if [ "$AGENTS_ONLY" = 0 ]; then
-site="$HOME/.config/dotfiles/site.bash"
-if [ "$OS" != Darwin ] && [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$ROOT/bash/.bashrc"; then
-  old_target=$(link_reference "$HOME/.bashrc" || true)
-  case "$old_target" in
-    "$ROOT/"*|"$PREVIOUS_ROOT/"*) ;;
-    *)
-      if [ -e "$site" ] || [ -L "$site" ]; then
-        echo "Existing site hook and unmanaged .bashrc; reconcile $site before installation." >&2
-        exit 1
-      fi
-      run mkdir -p "$(dirname "$site")"
-      run cp -pL "$HOME/.bashrc" "$site"
-      ;;
-  esac
-fi
-# Replace legacy whole-directory links with real directories and file links.
-# Copy their contents first so application-owned files survive the migration.
-for relative in .waveterm/config .config/ghostty; do
-  dest="$HOME/$relative"
-  if [ -L "$dest" ]; then
-    case "$(link_reference "$dest" || true)" in
-      "$ROOT/"*|"$PREVIOUS_ROOT/"*)
-        copy_contents=0
-        [ ! -d "$dest" ] || copy_contents=1
-        saved="$BACKUP/legacy-links/$relative"
-        run mkdir -p "$(dirname "$saved")"
-        run mv "$dest" "$saved"
-        run mkdir -p "$dest"
-        if [ "$copy_contents" = 1 ]; then run cp -pRL "$saved/." "$dest/"; fi
-        ;;
-    esac
-  fi
-done
-# Consolidate old local override names, keeping the current override last.
-# Copies are backed up before removal; dry-run performs no reads of their contents.
-migrate_overrides() {
-  local target="$HOME/.config/dotfiles/$1" old found=0 temp saved
-  shift
-  for old in "$@"; do [ ! -f "$HOME/$old" ] || found=1; done
-  [ "$found" = 1 ] || return 0
-  if [ "$DRY_RUN" = 1 ]; then
-    printf 'Would consolidate legacy overrides into %s (originals backed up)\n' "$target"
-    return 0
-  fi
-  mkdir -p "$(dirname "$target")"
-  temp=$(mktemp "$HOME/.config/dotfiles/.migration.XXXXXX")
-  for old in "$@"; do
-    if [ -f "$HOME/$old" ]; then
-      cat "$HOME/$old" >> "$temp"
-      printf '\n' >> "$temp"
-    fi
-  done
-  if [ -f "$target" ]; then cat "$target" >> "$temp"; fi
-  for old in "$@" "${target#"$HOME"/}"; do
-    if [ -e "$HOME/$old" ] || [ -L "$HOME/$old" ]; then
-      saved="$BACKUP/$old"
-      mkdir -p "$(dirname "$saved")"
-      mv "$HOME/$old" "$saved"
-    fi
-  done
-  mv "$temp" "$target"
-}
-if [ "$PROFILE" = personal ]; then
-  migrate_overrides local.env.zsh .config/dotfiles/environment.local.zsh .environment.local.zsh
-  migrate_overrides local.zsh .config/dotfiles/zshrc.local.zsh .dotfiles.local.zsh
-fi
-fi
 for ((i=0; i<${#sources[@]}; i++)); do
   src=${sources[i]}; dest=${targets[i]}
   if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
@@ -358,26 +255,7 @@ for ((i=0; i<${#sources[@]}; i++)); do
   fi
   run ln -s "$src" "$dest"
 done
-# Retire only links installed by the old layout, never similarly named user files.
-if [ "$AGENTS_ONLY" = 0 ] && [ "$PROFILE" = personal ]; then
-  for name in aliases functions environment config plugins tricks m_nvim; do
-    dest="$HOME/$name.zsh"
-    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name.zsh" ]; then
-      run mkdir -p "$BACKUP"
-      run mv "$dest" "$BACKUP/$name.zsh"
-    fi
-  done
-  for name in core aliases functions integrations; do
-    dest="$HOME/.config/dotfiles/zsh/$name"
-    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name" ]; then
-      run mkdir -p "$BACKUP/.config/dotfiles/zsh"
-      run mv "$dest" "$BACKUP/.config/dotfiles/zsh/$name"
-    fi
-  done
-  if [ -L "$HOME/cli" ] && [ "$(readlink "$HOME/cli")" = "$ROOT/cli" ]; then
-    run mkdir -p "$BACKUP"
-    run mv "$HOME/cli" "$BACKUP/cli"
-  fi
+if [ "$AGENTS_ONLY" = 0 ]; then
   run chmod 700 "$HOME/.ssh"
 fi
 if [ "$DRY_RUN" = 1 ]; then

@@ -30,7 +30,7 @@ class WorkflowTests(unittest.TestCase):
         def ignore_local(directory, names):
             ignored = set(shutil.ignore_patterns('.git', '.cache', '.claude', '.agents',
                                                 '.codex', '.aws', '__pycache__')(directory, names))
-            # Local-only compatibility links into ignored caches are not part
+            # Machine-local links into ignored caches are not part
             # of a fresh checkout and must not become dangling fixture links.
             for name in names:
                 path = Path(directory) / name
@@ -97,78 +97,26 @@ class WorkflowTests(unittest.TestCase):
                                    ('.tmux.conf', 'config/tmux/.tmux.conf')]:
                 self.assertEqual((self.home / target).resolve(), self.root / source)
 
-    def test_legacy_directory_links_migrate_without_mutating_sources(self):
+    def test_symlinked_application_parents_are_refused_without_writes(self):
         for target, source in [('.waveterm/config', 'config/terminals/waveterm/config'),
-                               ('.config/ghostty', 'config/terminals/ghostty')]:
-            destination = self.home / target
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.symlink_to(self.root / source, target_is_directory=True)
-            (self.root / source / 'app-state.txt').write_text('application state')
-        before = (self.root / 'config/terminals/waveterm/config/settings.json').read_bytes()
-        workflow.check_existing('linux')
-        preview = self.install('--dry-run')
-        self.assertIn('cp -pRL', preview.stdout)
-        self.assertTrue((self.home / '.waveterm/config').is_symlink())
-        self.assertFalse((self.home / '.dotfiles-backup').exists())
-        self.install()
-        self.assertFalse((self.home / '.waveterm/config').is_symlink())
-        self.assertTrue((self.home / '.waveterm/config/settings.json').is_symlink())
-        self.assertEqual((self.home / '.waveterm/config/app-state.txt').read_text(), 'application state')
-        self.assertEqual((self.home / '.config/ghostty/app-state.txt').read_text(), 'application state')
-        self.assertEqual((self.root / 'config/terminals/waveterm/config/settings.json').read_bytes(), before)
-        backups = sorted(self.home.glob('.dotfiles-backup/**/*'))
-        self.install()
-        self.assertEqual(sorted(self.home.glob('.dotfiles-backup/**/*')), backups)
-
-    def test_site_hook_conflict_stops_before_migrating_app_directories(self):
-        (self.home / '.bashrc').write_text('# existing device configuration\n')
-        site = self.home / '.config/dotfiles/site.bash'
-        site.parent.mkdir(parents=True)
-        site.write_text('# separate existing site hook\n')
-        directory = self.home / '.waveterm/config'
-        directory.parent.mkdir(parents=True)
-        directory.symlink_to(self.root / 'config/terminals/waveterm/config', target_is_directory=True)
-        result = subprocess.run(['bash', str(self.root / 'install.sh'), '--platform', 'linux'],
-                                text=True, capture_output=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('reconcile', result.stderr)
-        self.assertTrue(directory.is_symlink())
-        self.assertFalse((self.home / '.dotfiles-backup').exists())
-
-    def test_legacy_directory_link_via_checkout_alias_preserves_sources(self):
-        alias = self.base / 'checkout-alias'
-        alias.symlink_to(self.root, target_is_directory=True)
-        directory = self.home / '.waveterm/config'
-        directory.parent.mkdir(parents=True)
-        directory.symlink_to(alias / 'config/terminals/waveterm/config', target_is_directory=True)
-        source = self.root / 'config/terminals/waveterm/config/settings.json'
-        original = source.read_bytes()
-        (source.parent / 'device-state.txt').write_text('preserve application state\n')
-        workflow.check_existing('linux')
-        self.assertIn('cp -pRL', self.install('--dry-run').stdout)
-        self.install()
-        self.assertFalse(directory.is_symlink())
-        self.assertFalse(source.is_symlink())
-        self.assertEqual(source.read_bytes(), original)
-        self.assertEqual((directory / 'device-state.txt').read_text(), 'preserve application state\n')
-
-    def test_moved_checkout_with_retired_marker_via_parent_alias(self):
-        self.install()
-        alias = self.base / 'parent-alias'
-        alias.symlink_to(self.base, target_is_directory=True)
-        marker = self.home / '.config/dotfiles/profile'
-        marker.unlink()
-        marker.symlink_to(alias / 'checkout/setup/profiles/hep')
-        moved = self.base / 'moved checkout'
-        self.root.rename(moved)
-        for option in ('--check-existing', ''):
-            args = ['bash', str(moved / 'install.sh'), '--platform', 'linux']
-            if option:
-                args.append(option)
-            result = subprocess.run(args, text=True, capture_output=True)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(marker.read_text(), 'personal\n')
-        self.assertEqual((self.home / '.bashrc').resolve(), moved / 'bash/.bashrc')
+                               ('.config/ghostty', 'config/terminals/ghostty'),
+                               ('.config/micro', 'config/cli/micro')]:
+            with self.subTest(target=target):
+                parent = self.home / target
+                parent.parent.mkdir(parents=True, exist_ok=True)
+                parent.symlink_to(self.root / source, target_is_directory=True)
+                for option in ('--dry-run', '--status', '--check-existing', ''):
+                    args = ['bash', str(self.root / 'install.sh'), '--platform', 'linux']
+                    if option:
+                        args.append(option)
+                    result = subprocess.run(args, text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn('Blocked configuration parent: ' + str(parent), result.stderr)
+                    self.assertTrue(parent.is_symlink())
+                    self.assertFalse((self.home / '.bashrc').exists())
+                    self.assertFalse((self.home / '.dotfiles-backup').exists())
+                    self.assertEqual(self.git('status', '--porcelain'), '')
+                parent.unlink()
 
     def test_render_preserves_platform_preferences_and_detects_direct_edits(self):
         common = self.root / 'config/terminals/waveterm/settings.common.json'
@@ -329,20 +277,13 @@ class WorkflowTests(unittest.TestCase):
         original = source.read_bytes()
         old_remote = self.git('rev-parse', 'origin/main')
         self.advance_remote(peer)
-        with self.assertRaisesRegex(RuntimeError, 'Blocked agent parent'):
+        with self.assertRaisesRegex(RuntimeError, 'Blocked configuration parent'):
             workflow.sync(self.sync_args())
         self.assertEqual(self.git('rev-parse', 'origin/main'), old_remote)
         self.assertEqual(source.read_bytes(), original)
         self.assertTrue(parent.is_symlink())
         self.assertEqual((external / 'research-audit/SKILL.md').read_bytes(), original)
         self.assertFalse((self.home / '.dotfiles-backup').exists())
-
-    def test_sync_accepts_the_previous_mac_config_locations(self):
-        self.install()
-        target = self.home / '.config/gh/config.yml'
-        target.unlink()
-        target.symlink_to(self.root / 'config/mac/cli/gh/config.yml')
-        workflow.check_existing('linux')
 
     def test_sync_refuses_divergence_without_rewriting_local_commit(self):
         peer = self.configure_remote()
@@ -409,15 +350,17 @@ class WorkflowTests(unittest.TestCase):
                 self.assertFalse(path.is_symlink())
                 self.assertEqual(path.read_text(), 'device-owned configuration\n')
 
-    def test_retired_asset_group_is_ignored_without_touching_external_tools(self):
+    def test_invalid_asset_groups_are_rejected_without_rewriting_settings(self):
         marker = self.home / '.config/dotfiles/features.json'
         marker.parent.mkdir(parents=True)
         marker.write_text(json.dumps({'assets': ['shell', 'ai', 'editors']}))
-        self.assertEqual(workflow.enabled_assets(), ['shell', 'editors'])
+        with self.assertRaisesRegex(RuntimeError, 'Invalid enabled asset groups'):
+            workflow.enabled_assets()
         self.assertEqual(json.loads(marker.read_text())['assets'], ['shell', 'ai', 'editors'])
 
-    def test_assistant_provisioning_options_are_no_longer_accepted(self):
-        for arguments in [('bootstrap', '--ai'), ('sync', '--ai'), ('assets', '--group', 'ai')]:
+    def test_unknown_provisioning_options_are_rejected(self):
+        for arguments in [('bootstrap', '--apps'), ('bootstrap', '--dev'),
+                          ('sync', '--assets'), ('assets', '--group', 'ai')]:
             with self.subTest(arguments=arguments), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
                 workflow.parser().parse_args(arguments)
             self.assertEqual(error.exception.code, 2)

@@ -1,5 +1,5 @@
 # Native macOS command variants and applications.
-unalias hn gen_pass firefox web orion bypass_xyz 2>/dev/null || true
+unalias hn firefox web orion bypass_xyz 2>/dev/null || true
 alias ls='ls -G'
 alias dls='cd "$HOME/Library/Services"'
 if command -v clx >/dev/null 2>&1; then alias hn='clx'; fi

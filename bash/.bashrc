@@ -99,8 +99,6 @@ done
 DOTFILES_ROOT=$(cd -P "$(dirname "$_dotfiles_file")/.." && pwd)
 export DOTFILES_ROOT
 unset _dotfiles_file _dotfiles_dir
-# Preserve existing system/site Bash initialization during migration.
-[ -r "$HOME/.config/dotfiles/site.bash" ] && . "$HOME/.config/dotfiles/site.bash"
 . "$DOTFILES_ROOT/shell/env.sh"
 . "$DOTFILES_ROOT/shell/interactive.sh" || return
 alias reload='source ~/.bashrc'
