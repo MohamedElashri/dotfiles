@@ -241,7 +241,9 @@ class WorkflowTests(unittest.TestCase):
         peer = self.configure_remote()
         self.install()
         (self.home / '.config/gh/config.yml').unlink()
-        agent_targets = ['.codex/AGENTS.md', '.agents/skills/research-audit',
+        agent_targets = ['.codex/AGENTS.md', '.claude/CLAUDE.md',
+                         '.config/opencode/AGENTS.md', '.pi/agent/AGENTS.md',
+                         '.agents/skills/research-audit',
                          '.agents/skills/engineering-audit', '.claude/skills/research-audit',
                          '.claude/skills/engineering-audit']
         for target in agent_targets:

@@ -7,13 +7,18 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 LINKS = {
-    '.codex/AGENTS.md': 'agent-workflow/global.md',
+    '.codex/AGENTS.md': 'agent-workflow/AGENTS.md',
+    '.claude/CLAUDE.md': 'agent-workflow/AGENTS.md',
+    '.config/opencode/AGENTS.md': 'agent-workflow/AGENTS.md',
+    '.pi/agent/AGENTS.md': 'agent-workflow/AGENTS.md',
     '.agents/skills/research-audit': 'agent-workflow/skills/research-audit',
     '.agents/skills/engineering-audit': 'agent-workflow/skills/engineering-audit',
     '.claude/skills/research-audit': 'agent-workflow/skills/research-audit',
     '.claude/skills/engineering-audit': 'agent-workflow/skills/engineering-audit',
 }
-SKILL_TARGETS = [target for target in LINKS if target != '.codex/AGENTS.md']
+SKILL_TARGETS = [target for target, source in LINKS.items() if '/skills/' in source]
+AGENT_PARENTS = ['.codex', '.agents', '.agents/skills', '.claude', '.claude/skills',
+                 '.config', '.config/opencode', '.pi', '.pi/agent']
 
 
 def manifest(path):
@@ -100,13 +105,18 @@ class AgentWorkflowTests(unittest.TestCase):
             with self.subTest(platform=platform):
                 home = self.home(platform)
                 originals = {'.codex/AGENTS.md': b'Previous global instructions\n',
+                             '.claude/CLAUDE.md': b'Previous Claude instructions\n',
+                             '.config/opencode/AGENTS.md': b'Previous OpenCode instructions\n',
+                             '.pi/agent/AGENTS.md': b'Previous pi instructions\n',
                              '.agents/skills/research-audit/SKILL.md': b'Previous research skill\n',
                              '.claude/skills/research-audit/SKILL.md': b'Previous Claude research skill\n'}
                 siblings = {'.codex/config.toml': b'# local provider settings\n',
                             '.codex/AGENTS.override.md': b'Local override\n',
                             '.agents/skills/other/SKILL.md': b'Unrelated skill\n',
                             '.claude/settings.json': b'{"privateSettings": true}\n',
-                            '.claude/CLAUDE.md': b'Private global instructions\n',
+                            '.config/opencode/opencode.json': b'{"model": "local"}\n',
+                            '.pi/agent/settings.json': b'{"local": true}\n',
+                            '.pi/agent/AGENTS.override.md': b'Local pi override\n',
                             '.claude/skills/other/SKILL.md': b'Unrelated Claude skill\n',
                             '.claude/plugins/local.txt': b'Private plugin state\n'}
                 for target, content in {**originals, **siblings}.items():
@@ -133,6 +143,84 @@ class AgentWorkflowTests(unittest.TestCase):
                     self.assertEqual((home / target).read_bytes(), content)
                 installed = snapshot(home)
                 self.install(home, platform)
+                self.assertEqual(snapshot(home), installed)
+
+    def test_agents_only_preserves_unrelated_configuration_and_migrations(self):
+        for platform in ('linux', 'mac'):
+            with self.subTest(platform=platform):
+                home = self.home(platform)
+                protected = {
+                    '.bashrc': b'User shell configuration\n',
+                    '.config/dotfiles/site.bash': b'Existing site hook\n',
+                    '.environment.local.zsh': b'Legacy override\n',
+                    '.ssh/config': b'User SSH configuration\n',
+                }
+                for target, content in protected.items():
+                    path = home / target
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(content)
+                legacy = {
+                    '.waveterm/config': ROOT / 'config/terminals/waveterm/config',
+                    'aliases.zsh': ROOT / 'zsh/aliases.zsh',
+                }
+                for target, source in legacy.items():
+                    path = home / target
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.symlink_to(source)
+                ssh_mode = (home / '.ssh').stat().st_mode
+                before = snapshot(home)
+                rows = self.install(home, platform, '--agents-only', '--list').stdout.splitlines()
+                self.assertEqual({tuple(row.split('\t')) for row in rows},
+                                 {(str(ROOT / source), str(home / target))
+                                  for target, source in LINKS.items()})
+                self.install(home, platform, '--agents-only', '--check-existing')
+                self.install(home, platform, '--agents-only', '--dry-run')
+                self.assertEqual(snapshot(home), before)
+                self.install(home, platform, '--agents-only')
+                self.assert_links(home)
+                self.assertFalse((home / '.zshrc').exists())
+                self.assertFalse((home / '.config/dotfiles/profile').exists())
+                self.assertFalse((home / '.dotfiles-backup').exists())
+                self.assertEqual((home / '.ssh').stat().st_mode, ssh_mode)
+                after = snapshot(home)
+                for target in protected.keys() | legacy.keys():
+                    self.assertEqual(after[target], before[target], target)
+                self.install(home, platform, '--agents-only', '--status')
+                self.install(home, platform, '--agents-only', '--check-existing')
+                self.install(home, platform, '--agents-only')
+                self.assertEqual(snapshot(home), after)
+
+    def test_renamed_global_source_preserves_and_migrates_existing_links(self):
+        legacy = ROOT / 'agent-workflow/global.md'
+        canonical = ROOT / 'agent-workflow/AGENTS.md'
+        self.assertTrue(legacy.is_symlink())
+        self.assertEqual(legacy.readlink(), Path('AGENTS.md'))
+        for platform in ('linux', 'mac'):
+            with self.subTest(platform=platform):
+                home = self.home(platform)
+                for target, source in LINKS.items():
+                    if source != 'agent-workflow/AGENTS.md':
+                        continue
+                    path = home / target
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.symlink_to(legacy)
+                    self.assertEqual(path.resolve(strict=True), canonical)
+                    self.assertEqual(path.read_bytes(), canonical.read_bytes())
+                before = snapshot(home)
+                self.install(home, platform, '--agents-only', '--check-existing')
+                self.install(home, platform, '--agents-only', '--dry-run')
+                self.assertEqual(snapshot(home), before)
+                self.install(home, platform, '--agents-only')
+                self.assert_links(home)
+                for target, source in LINKS.items():
+                    if source != 'agent-workflow/AGENTS.md':
+                        continue
+                    backups = list(home.glob('.dotfiles-backup/*/' + target))
+                    self.assertEqual(len(backups), 1)
+                    self.assertEqual(backups[0].readlink(), legacy)
+                installed = snapshot(home)
+                self.install(home, platform, '--agents-only', '--status')
+                self.install(home, platform, '--agents-only')
                 self.assertEqual(snapshot(home), installed)
 
     def test_diagnostics_detect_drift_without_writes(self):
@@ -168,7 +256,7 @@ class AgentWorkflowTests(unittest.TestCase):
         for platform in ('linux', 'mac'):
             home = self.home(platform)
             for target, source in LINKS.items():
-                if source == 'agent-workflow/global.md':
+                if source == 'agent-workflow/AGENTS.md':
                     continue
                 folder = home / target
                 folder.mkdir(parents=True)
@@ -180,7 +268,7 @@ class AgentWorkflowTests(unittest.TestCase):
             self.install(home, platform)
             self.assert_links(home)
             for target, source in LINKS.items():
-                if source == 'agent-workflow/global.md':
+                if source == 'agent-workflow/AGENTS.md':
                     continue
                 backups = list(home.glob('.dotfiles-backup/*/' + target + '/SKILL.md'))
                 self.assertEqual(len(backups), 1)
@@ -240,7 +328,7 @@ class AgentWorkflowTests(unittest.TestCase):
                 self.assertEqual(snapshot(home), {})
 
     def test_unsafe_agent_parents_are_refused_before_any_installation(self):
-        parents = ['.codex', '.agents', '.agents/skills', '.claude', '.claude/skills']
+        parents = AGENT_PARENTS
         for platform in ('linux', 'mac'):
             for relative in parents:
                 for kind in ('symlink', 'dangling-symlink', 'file'):
@@ -309,7 +397,7 @@ class AgentWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(os.geteuid() == 0, 'Permission-denial behavior requires an unprivileged user')
     def test_unsearchable_agent_parents_are_refused_without_writes(self):
-        for relative in ('.codex', '.agents', '.agents/skills', '.claude', '.claude/skills'):
+        for relative in AGENT_PARENTS:
             with self.subTest(parent=relative):
                 home = self.home(relative.replace('/', '-'))
                 parent = home / relative
@@ -328,7 +416,7 @@ class AgentWorkflowTests(unittest.TestCase):
     @unittest.skipIf(os.geteuid() == 0, 'Permission-denial behavior requires an unprivileged user')
     def test_required_agent_writes_are_preflighted(self):
         for platform in ('linux', 'mac'):
-            cases = [('parent', name) for name in ('.codex', '.agents/skills', '.claude/skills')]
+            cases = [('parent', name) for name in AGENT_PARENTS]
             cases += [('directory', name) for name in SKILL_TARGETS]
             for kind, relative in cases:
                 with self.subTest(platform=platform, kind=kind, path=relative):
@@ -353,7 +441,7 @@ class AgentWorkflowTests(unittest.TestCase):
     def test_correct_agent_links_work_with_readonly_parents(self):
         home = self.home('home')
         self.install(home, 'linux')
-        parents = [home / name for name in ('.codex', '.agents/skills', '.claude/skills')]
+        parents = [home / name for name in AGENT_PARENTS]
         before = snapshot(home)
         for parent in parents:
             parent.chmod(0o555)
@@ -389,10 +477,10 @@ class AgentWorkflowTests(unittest.TestCase):
     def test_skill_packaging_and_frontmatter(self):
         expected = {str(manifest(ROOT / source).relative_to(ROOT)) for source in LINKS.values()}
         files = {str(p.relative_to(ROOT)) for p in (ROOT / 'agent-workflow').rglob('*') if p.is_file()}
-        self.assertEqual(files, expected)
+        self.assertEqual(files, expected | {'agent-workflow/global.md'})
         names = set()
         descriptions = set()
-        for source in sorted(expected - {'agent-workflow/global.md'}):
+        for source in sorted(expected - {'agent-workflow/AGENTS.md'}):
             path = ROOT / source
             self.assertFalse(path.is_symlink())
             lines = path.read_text().splitlines()

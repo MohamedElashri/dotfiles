@@ -38,6 +38,7 @@ DRY_RUN=0
 STATUS=0
 LIST=0
 CHECK_EXISTING=0
+AGENTS_ONLY=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --profile) [ "$#" -ge 2 ] || { echo '--profile requires personal' >&2; exit 2; }; PROFILE=$2; shift ;;
@@ -46,7 +47,8 @@ while [ "$#" -gt 0 ]; do
     --status) STATUS=1 ;;
     --list|--manifest) LIST=1 ;;
     --check-existing) CHECK_EXISTING=1 ;;
-    --help|-h) echo 'Usage: ./install.sh [--profile personal] [--platform linux|mac] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
+    --agents-only) AGENTS_ONLY=1 ;;
+    --help|-h) echo 'Usage: ./install.sh [--profile personal] [--platform linux|mac] [--agents-only] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -74,8 +76,11 @@ add zsh/.zshrc .zshrc
 add config/git/.gitconfig .gitconfig
 add config/git/.stCommitMsg .stCommitMsg
 add config/git/ignore .config/dotfiles/git-ignore
-# Share portable skill sources without managing either harness's private state.
-add agent-workflow/global.md .codex/AGENTS.md
+# Share instructions and portable skills without managing private harness state.
+add agent-workflow/AGENTS.md .codex/AGENTS.md
+add agent-workflow/AGENTS.md .claude/CLAUDE.md
+add agent-workflow/AGENTS.md .config/opencode/AGENTS.md
+add agent-workflow/AGENTS.md .pi/agent/AGENTS.md
 for skill in research-audit engineering-audit; do
   add "agent-workflow/skills/$skill" ".agents/skills/$skill"
   add "agent-workflow/skills/$skill" ".claude/skills/$skill"
@@ -113,6 +118,17 @@ else
     add "config/terminals/waveterm/config/$name" ".waveterm/config/$name"
   done
   add config/git/linux.gitconfig .config/dotfiles/git-platform
+fi
+# Reuse the normal backup, preflight, and diagnostic paths for agent-only setup.
+if [ "$AGENTS_ONLY" = 1 ]; then
+  agent_sources=(); agent_targets=()
+  for ((i=0; i<${#sources[@]}; i++)); do
+    case "${sources[i]}" in
+      "$ROOT/agent-workflow/"*)
+        agent_sources+=("${sources[i]}"); agent_targets+=("${targets[i]}") ;;
+    esac
+  done
+  sources=("${agent_sources[@]}"); targets=("${agent_targets[@]}")
 fi
 # Validate all sources before making any changes.
 for src in "${sources[@]}"; do
@@ -260,6 +276,7 @@ run() {
 }
 # Keep an unmanaged pre-existing Bash rc as a site hook, including /etc/bashrc
 # initialization and module definitions. Existing repo links need no hook.
+if [ "$AGENTS_ONLY" = 0 ]; then
 site="$HOME/.config/dotfiles/site.bash"
 if [ "$OS" != Darwin ] && [ -f "$HOME/.bashrc" ] && ! cmp -s "$HOME/.bashrc" "$ROOT/bash/.bashrc"; then
   old_target=$(link_reference "$HOME/.bashrc" || true)
@@ -326,6 +343,7 @@ if [ "$PROFILE" = personal ]; then
   migrate_overrides local.env.zsh .config/dotfiles/environment.local.zsh .environment.local.zsh
   migrate_overrides local.zsh .config/dotfiles/zshrc.local.zsh .dotfiles.local.zsh
 fi
+fi
 for ((i=0; i<${#sources[@]}; i++)); do
   src=${sources[i]}; dest=${targets[i]}
   if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
@@ -341,7 +359,7 @@ for ((i=0; i<${#sources[@]}; i++)); do
   run ln -s "$src" "$dest"
 done
 # Retire only links installed by the old layout, never similarly named user files.
-if [ "$PROFILE" = personal ]; then
+if [ "$AGENTS_ONLY" = 0 ] && [ "$PROFILE" = personal ]; then
   for name in aliases functions environment config plugins tricks m_nvim; do
     dest="$HOME/$name.zsh"
     if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/zsh/$name.zsh" ]; then
@@ -365,6 +383,10 @@ fi
 if [ "$DRY_RUN" = 1 ]; then
   echo 'Preview complete; no files changed.'
 else
-  echo 'Done. Open a new shell.'
+  if [ "$AGENTS_ONLY" = 1 ]; then
+    echo 'Done. Start new coding-agent sessions to load the instructions.'
+  else
+    echo 'Done. Open a new shell.'
+  fi
   [ ! -d "$BACKUP" ] || printf 'Replaced files: %s\n' "$BACKUP"
 fi

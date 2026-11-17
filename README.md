@@ -1,8 +1,8 @@
 # dotfiles
 
 Personal Linux/macOS configuration for shells, Git, SSH, editors, terminals,
-and Codex/Claude Code audit skills. Installed files link to this checkout;
-keep it in place.
+and shared coding-agent instructions and audit skills. Installed files link to
+this checkout; keep it in place.
 
 ## Setup
 
@@ -87,14 +87,76 @@ Host *
 Keep private SSH files mode 600. Comment/remove the include to disable those
 routes; `ssh -G <alias>` checks effective settings without connecting.
 
-## Audit skills
+## Coding agents
 
-`agent-workflow/global.md` links to `~/.codex/AGENTS.md`. The two shared skill
-folders link into `~/.agents/skills/` and `~/.claude/skills/`.
+Edit [`agent-workflow/AGENTS.md`](agent-workflow/AGENTS.md) to change personal
+development defaults for every supported harness. It covers scoped changes,
+local planning, verification, Conventional Commits, concise PR descriptions,
+and communication. This is the single shared source: edit it here, then start
+new agent sessions to pick up changes. Once installed, the symlinks expose edits
+directly; you do not need to reinstall after changing the content. Each harness
+receives the same file at its native global instruction path:
+
+| Harness | Installed instruction file | Loading reference |
+| --- | --- | --- |
+| Codex | `~/.codex/AGENTS.md` | [AGENTS.md guide](https://developers.openai.com/codex/guides/agents-md/) |
+| Claude Code | `~/.claude/CLAUDE.md` | [Memory guide](https://code.claude.com/docs/en/memory) |
+| OpenCode | `~/.config/opencode/AGENTS.md` | [Instructions](https://opencode.ai/docs/instructions/), [V1 rules](https://opencode.ai/v1/docs/rules/) |
+| pi | `~/.pi/agent/AGENTS.md` | [Context files](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#context-files) |
+
+Install just agent instructions and the two existing audit skills on Linux or
+macOS, without changing shell or application configuration:
+
+```bash
+./install.sh --agents-only --dry-run
+./install.sh --agents-only
+./install.sh --agents-only --status
+```
+
+The old `agent-workflow/global.md` path is a compatibility symlink to `AGENTS.md`,
+so earlier installed links keep working. Rerunning the installer updates those
+links to the new canonical path. Edit `agent-workflow/AGENTS.md` going forward.
+
+The regular installer/bootstrap also includes these links. Existing destination
+files are moved to `~/.dotfiles-backup/<run>/<original-path>` before replacement;
+review or merge any personal instructions from those backups. Repeat installs
+leave correct links alone. Provider settings, credentials, sessions, plugins,
+and unrelated skills stay local. Parent symlinks and inaccessible agent folders
+must be reconciled before installation. No harness installation, account setup,
+or web synchronization is performed. Keep this checkout in place and start new
+agent sessions after setup or edits.
+
+The installer targets the default paths above, regardless of environment
+overrides. If you use `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `PI_CODING_AGENT_DIR`, or
+a custom OpenCode configuration location, use the harness's documentation to
+locate its effective global instruction file and link that file manually. For
+example, for an existing custom Codex profile:
+
+```bash
+: "${CODEX_HOME:?Set CODEX_HOME to your custom absolute profile directory}"
+mkdir -p "$CODEX_HOME"
+ln -s "$PWD/agent-workflow/AGENTS.md" "$CODEX_HOME/AGENTS.md"
+```
+
+Run this from the checkout with `CODEX_HOME` set to the intended absolute path;
+`ln -s` refuses an existing file, which you should review and back up first.
+For another harness, use the same source with its documented user instruction
+filename. A bare `~/AGENTS.md` is not a universal global configuration, and
+Markdown `@` imports are not supported by every harness.
+
+Repository and directory instructions refine these defaults according to each
+harness's loading rules. Codex's `AGENTS.override.md` can replace the global
+file; the installer preserves it. pi also supports override files in current
+versions and can disable context loading. Check those controls if guidance is
+missing. Use Claude Code's `/memory` to inspect loaded files; for other harnesses,
+check their context diagnostics and ask a new session to summarize its active
+instructions. `--status` checks links, not whether a model follows the rules.
+
+The two shared skill folders link into `~/.agents/skills/` and `~/.claude/skills/`.
 Use `$research-audit` / `$engineering-audit` in Codex, or
 `/research-audit` / `/engineering-audit` in Claude Code. Audits are read-only
-unless edits are authorized. Provider settings and unrelated skills stay local;
-no account/web sync is configured. Custom harness homes need manual review.
+unless edits are authorized. Skill discovery in other harnesses depends on
+their version and configuration; instruction-file support is independent.
 Project agent guidance is visible to Git: inspect new files before adding them.
 
 ## Checks

@@ -321,7 +321,7 @@ class InstallTests(unittest.TestCase):
                 expected_profile = moved/('config/mac/shell/.profile' if platform == 'mac' else 'shell/.profile')
                 self.assertEqual((target_home/'.profile').resolve(), expected_profile.resolve())
                 self.assertEqual((target_home/'.bashrc').resolve(), (moved/'bash/.bashrc').resolve())
-                for target, source in [('.codex/AGENTS.md', 'agent-workflow/global.md'),
+                for target, source in [('.codex/AGENTS.md', 'agent-workflow/AGENTS.md'),
                                        ('.agents/skills/research-audit/SKILL.md', 'agent-workflow/skills/research-audit/SKILL.md'),
                                        ('.agents/skills/engineering-audit/SKILL.md', 'agent-workflow/skills/engineering-audit/SKILL.md')]:
                     self.assertEqual((target_home/target).resolve(strict=True), (moved/source).resolve(strict=True))
