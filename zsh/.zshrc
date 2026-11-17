@@ -32,19 +32,12 @@ setopt hist_ignore_all_dups # drop duplicates anywhere, not just adjacent
 setopt hist_reduce_blanks   # collapse multiple blanks in stored entries
 
 source "$DOTFILES_ROOT/zsh/tools.zsh"
-source "$DOTFILES_ROOT/shell/aliases.sh"
+source "$DOTFILES_ROOT/shell/interactive.sh" || return
 source "$DOTFILES_ROOT/zsh/aliases.zsh"
-source "$DOTFILES_ROOT/zsh/functions.zsh"
-if [[ "$(uname -s)" == Darwin ]]; then
-  source "$DOTFILES_ROOT/config/mac/zsh/functions.zsh"
-  source "$DOTFILES_ROOT/config/mac/zsh/aliases.zsh"
-fi
 bindkey -s "^a" "nvims\n"
-case "$(uname -s)" in
-  Darwin) source "$DOTFILES_ROOT/platform/mac.sh"
-          [[ -r "$HOME/.iterm2_shell_integration.zsh" ]] && source "$HOME/.iterm2_shell_integration.zsh" ;;
-  Linux) source "$DOTFILES_ROOT/platform/linux.sh" ;;
-esac
+if [[ "$(uname -s)" == Darwin && -r "$HOME/.iterm2_shell_integration.zsh" ]]; then
+  source "$HOME/.iterm2_shell_integration.zsh"
+fi
 [[ -r "$HOME/.config/dotfiles/local.zsh" ]] && source "$HOME/.config/dotfiles/local.zsh"
 
 # Run after local overrides so the startup-message toggle takes effect.

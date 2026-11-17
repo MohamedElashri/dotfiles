@@ -58,8 +58,16 @@ edits before reinstalling. Rerun the installer after moving the checkout.
 
 ## Customize
 
-Edit `shell/`, `bash/`, `zsh/`, `platform/`, or `config/`. Package, plugin, and
-font choices live in `setup/`; `dotfiles fonts --list` lists optional fonts.
+Both Bash and Zsh load `shell/interactive.sh`: common shortcuts live in
+`shell/aliases.sh`, and helpers are grouped under `shell/functions/` by archives,
+files, development, Docker, network, and system. Native OS adapters live in
+`platform/linux/` and `platform/mac/`; shell hooks stay in `bash/` and `zsh/`.
+Optional-tool aliases appear when their commands are available. `list_commands`
+shows loaded shortcuts/helpers. `ll`, `la`, and `ports` now match across shells;
+`update`/`upgrade` manage Homebrew on both OSes, while `mac-update` updates macOS.
+
+App preferences live in `config/`. Package, plugin, and font choices live in
+`setup/`; `dotfiles fonts --list` lists available font families.
 After changing Waveterm source preferences or `setup/assets.json`, run
 `dotfiles render` and keep the generated outputs too.
 

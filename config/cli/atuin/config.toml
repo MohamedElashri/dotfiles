@@ -179,8 +179,9 @@ enter_accept = true
 # network_connect_timeout = 5
 # network_timeout = 5
 
-## Timeout (in seconds) for acquiring a local database connection (sqlite)
-# local_timeout = 5
+## Timeout (in seconds) for acquiring a local database connection (sqlite).
+## Allow for slow disk writes during sync and database migrations.
+local_timeout = 30
 
 ## Set this to true and Atuin will minimize motion in the UI - timers will not update live, etc.
 ## Alternatively, set env NO_MOTION=true

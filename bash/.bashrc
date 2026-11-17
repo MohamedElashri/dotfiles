@@ -72,27 +72,13 @@ xterm*|rxvt*)
     ;;
 esac
 
-# enable color support of ls and also add handy aliases
+# Bash dircolors initialization; command aliases live in the shared CLI.
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-    alias ls='ls --color=auto'
-    #alias dir='dir --color=auto'
-    #alias vdir='vdir --color=auto'
-
-    alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
 fi
 
 # colored GCC warnings and errors
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01:quote=01'
-
-alias l='ls -CF'
-
-# Add an "alert" alias for long running commands.  Use like so:
-#   sleep 10; alert
-alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
-
 # enable programmable completion features.
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
@@ -116,14 +102,8 @@ unset _dotfiles_file _dotfiles_dir
 # Preserve existing system/site Bash initialization during migration.
 [ -r "$HOME/.config/dotfiles/site.bash" ] && . "$HOME/.config/dotfiles/site.bash"
 . "$DOTFILES_ROOT/shell/env.sh"
-. "$DOTFILES_ROOT/shell/aliases.sh"
-# Preserve the Bash listing shortcuts.
-alias ll='ls -alF'
-alias la='ls -A'
-case "$(uname -s)" in
-  Darwin) . "$DOTFILES_ROOT/platform/mac.sh" ;;
-  Linux) . "$DOTFILES_ROOT/platform/linux.sh" ;;
-esac
+. "$DOTFILES_ROOT/shell/interactive.sh" || return
+alias reload='source ~/.bashrc'
 . "$DOTFILES_ROOT/bash/tools.bash"
 [ -r "$HOME/.config/dotfiles/local.bash" ] && . "$HOME/.config/dotfiles/local.bash"
 return 0
