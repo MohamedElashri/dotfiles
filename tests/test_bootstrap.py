@@ -287,6 +287,19 @@ class ColdStartTests(unittest.TestCase):
         self.assertIn('normal user', result.stderr)
         self.assertFalse(self.log.exists())
 
+    def test_linux_prerequisite_preview_never_launches_python(self):
+        self.fake('python3', 'mkdir -p "$HOME/Library"; echo python >> "$COMMAND_LOG"; exit 1')
+        for system in ('Linux', 'Darwin'):
+            with self.subTest(host=system):
+                self.fake('uname', f'echo {system}')
+                result = subprocess.run(['/bin/bash', str(ROOT / 'scripts/prerequisites.sh'),
+                                         '--platform', 'linux', '--dry-run'], env=self.env,
+                                        text=True, capture_output=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('apt-get install', result.stdout)
+                self.assertFalse(self.log.exists())
+                self.assertFalse((self.base / 'Library').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

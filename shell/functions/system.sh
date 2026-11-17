@@ -284,8 +284,8 @@ temps() {
                 readings=$(
                     for device in CPU GPU; do
                         case "$device" in
-                            CPU) flag="-c" ;;
-                            GPU) flag="-g" ;;
+                            (CPU) flag="-c" ;;
+                            (GPU) flag="-g" ;;
                         esac
 
                         value=$(osx-cpu-temp "$flag" -T 2>/dev/null) ||

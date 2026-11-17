@@ -211,13 +211,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('Would download and verify meslo', output.getvalue())
 
     def test_invalid_font_option_fails_before_packages_change(self):
-        args = workflow.parser().parse_args(['bootstrap', '--platform', 'linux', '--fonts', 'unknown'])
-        with mock.patch.object(workflow, 'run') as execute, self.assertRaises(RuntimeError):
+        args = workflow.parser().parse_args(['bootstrap', '--platform', workflow.os_name(), '--fonts', 'unknown'])
+        with mock.patch.object(workflow, 'run') as execute, self.assertRaisesRegex(RuntimeError, 'Unknown font'):
             workflow.bootstrap(args)
         execute.assert_not_called()
 
     def test_bootstrap_links_custom_theme_after_provisioning_framework(self):
-        args = workflow.parser().parse_args(['bootstrap', '--platform', 'linux', '--skip-packages', '--skip-apps', '--skip-fonts', '--skip-shell'])
+        args = workflow.parser().parse_args(['bootstrap', '--platform', workflow.os_name(), '--skip-packages', '--skip-apps', '--skip-fonts', '--skip-shell'])
         def provision(_args):
             (self.home / '.oh-my-zsh/.git').mkdir(parents=True)
             return 0

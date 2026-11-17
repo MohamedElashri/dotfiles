@@ -31,7 +31,9 @@ case "$system" in
     esac
     missing=0
     for tool in gcc make curl git file ps python3 fc-cache ssh; do command -v "$tool" >/dev/null 2>&1 || missing=1; done
-    if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then missing=1; fi
+    # Preview conservatively includes prerequisites without launching Python.
+    # Apple's Python launcher can create HOME/Library even for a version probe.
+    if [ "$dry" = 1 ] || ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then missing=1; fi
     if [ "$missing" = 1 ]; then
       if [ "$manager" = apt ]; then
         run sudo apt-get update

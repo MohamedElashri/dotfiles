@@ -22,7 +22,7 @@ class SharedShellTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='dotfiles-shared-cli-')
         self.addCleanup(self.temp.cleanup)
-        self.home = Path(self.temp.name)
+        self.home = Path(self.temp.name).resolve()
         self.bin = self.home / 'test-bin'
         self.bin.mkdir()
         self.env = {'HOME': str(self.home), 'ZDOTDIR': str(self.home), 'DOTFILES_ROOT': str(ROOT),
@@ -58,6 +58,7 @@ class SharedShellTests(unittest.TestCase):
     def assert_success(self, result):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn('parse error', result.stderr.lower())
+        self.assertNotIn('syntax error', result.stderr.lower())
         self.assertNotIn('command not found', result.stderr.lower())
 
     def test_core_aliases_and_functions_match_in_all_four_environments(self):
@@ -611,6 +612,18 @@ esac''')
                     self.assertIn('50.0 C', result.stdout)
                     self.assertIn('OK', result.stdout)
                     self.assertNotIn('\x1b[', result.stdout)
+
+    def test_intel_mac_temperature_backend_uses_both_sensor_flags(self):
+        self.fake('uname', 'if [ "$1" = -m ]; then echo x86_64; else echo Darwin; fi')
+        self.fake('osx-cpu-temp', 'printf "%s\\n" "$*" >> "$OPERATION_LOG"; if [ "$1" = -c ]; then echo 50; else echo 40; fi')
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                self.log.unlink(missing_ok=True)
+                result = self.run_shell(shell, 'temps', env={'NO_COLOR': '1'})
+                self.assert_success(result)
+                self.assertEqual(self.log.read_text().splitlines(), ['-c -T', '-g -T'])
+                self.assertIn('50.0 C', result.stdout)
+                self.assertIn('40.0 C', result.stdout)
 
     def test_legacy_aliases_can_be_reloaded_into_functions(self):
         for shell in SHELLS:
