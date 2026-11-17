@@ -1,4 +1,4 @@
-# Agent evaluation contracts and limits
+# Coding agents
 
 The maintained policy, project templates, skills, fixtures, and runner live in
 this dotfiles checkout. Normal bootstrap and CI never invoke a model. The runner
@@ -10,6 +10,61 @@ links by default, and classic CLI commands do not import the evaluation modules.
 Use `--with-agents` for combined setup/maintenance or `install.sh --agents-only`
 for agent links. Classic operation also works when `agent-workflow/` and
 `scripts/agent_*.py` are absent.
+
+## Installation and instructions
+
+Preview `./install.sh --agents-only --dry-run`, then run
+`./install.sh --agents-only` to link the shared policy and skills. Add
+`--with-agents` to the installer, bootstrap, sync or doctor for combined
+operations. Each command requires its own opt-in; classic commands leave
+existing agent files alone.
+
+Edit [AGENTS.md](../agent-workflow/AGENTS.md), then start new sessions. Content
+edits need no reinstall because all harnesses link to the same source.
+
+| Harness | Global instruction file |
+| --- | --- |
+| [Codex](https://developers.openai.com/codex/guides/agents-md/) | `~/.codex/AGENTS.md` |
+| [Claude Code](https://code.claude.com/docs/en/memory) | `~/.claude/CLAUDE.md` |
+| [OpenCode](https://opencode.ai/docs/instructions/) | `~/.config/opencode/AGENTS.md` |
+| [pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#context-files) | `~/.pi/agent/AGENTS.md` |
+
+These are default homes; custom homes need manual links to the same policy.
+Repository instructions and harness overrides can change loaded guidance.
+Installer `--status` checks links only. Harness binaries, credentials, settings,
+sessions and unrelated skills remain local.
+Skill directories containing extra user files require manual reconciliation
+before replacement.
+
+Shared skills link into `~/.agents/skills/` and `~/.claude/skills/`:
+`research-audit`, `engineering-audit` and `cuda-performance`. Invoke
+`$research-audit` / `$engineering-audit` in Codex, or `/research-audit` /
+`/engineering-audit` in Claude Code. Audits are read-only unless edits are
+authorized; the CUDA skill adds no domain assumptions to the global policy.
+
+## Projects and commands
+
+```bash
+dotfiles agents doctor
+dotfiles agents init --target /absolute/project/path --dry-run
+dotfiles agents eval list
+dotfiles agents eval score --case E03 --candidate /absolute/candidate --trusted-candidate
+dotfiles agents eval report --format json
+dotfiles agents eval prune --days 30
+```
+
+Initialization preserves existing guidance and ignore rules. Add `--with-plan`
+to create one plan template when absent. Source [project templates](../agent-workflow/templates/)
+remain editable; review generated guidance before adding it to Git.
+
+Scoring is offline; functional candidates require explicit trust because their
+code executes. Live evaluation requires separate authorization and explicit
+limits. Only the Codex 0.169.x adapter is implemented:
+
+```bash
+dotfiles agents eval run --case E03 --harness codex --live --profile trusted \
+  --timeout 180 --output-limit 1048576 --auth-file "$HOME/.codex/auth.json"
+```
 
 ## Cases and scoring
 
