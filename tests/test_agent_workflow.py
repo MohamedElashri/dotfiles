@@ -190,39 +190,6 @@ class AgentWorkflowTests(unittest.TestCase):
                 self.install(home, platform, '--agents-only')
                 self.assertEqual(snapshot(home), after)
 
-    def test_renamed_global_source_preserves_and_migrates_existing_links(self):
-        legacy = ROOT / 'agent-workflow/global.md'
-        canonical = ROOT / 'agent-workflow/AGENTS.md'
-        self.assertTrue(legacy.is_symlink())
-        self.assertEqual(legacy.readlink(), Path('AGENTS.md'))
-        for platform in ('linux', 'mac'):
-            with self.subTest(platform=platform):
-                home = self.home(platform)
-                for target, source in LINKS.items():
-                    if source != 'agent-workflow/AGENTS.md':
-                        continue
-                    path = home / target
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.symlink_to(legacy)
-                    self.assertEqual(path.resolve(strict=True), canonical)
-                    self.assertEqual(path.read_bytes(), canonical.read_bytes())
-                before = snapshot(home)
-                self.install(home, platform, '--agents-only', '--check-existing')
-                self.install(home, platform, '--agents-only', '--dry-run')
-                self.assertEqual(snapshot(home), before)
-                self.install(home, platform, '--agents-only')
-                self.assert_links(home)
-                for target, source in LINKS.items():
-                    if source != 'agent-workflow/AGENTS.md':
-                        continue
-                    backups = list(home.glob('.dotfiles-backup/*/' + target))
-                    self.assertEqual(len(backups), 1)
-                    self.assertEqual(backups[0].readlink(), legacy)
-                installed = snapshot(home)
-                self.install(home, platform, '--agents-only', '--status')
-                self.install(home, platform, '--agents-only')
-                self.assertEqual(snapshot(home), installed)
-
     def test_diagnostics_detect_drift_without_writes(self):
         for platform in ('linux', 'mac'):
             home = self.home(platform)
@@ -477,7 +444,7 @@ class AgentWorkflowTests(unittest.TestCase):
     def test_skill_packaging_and_frontmatter(self):
         expected = {str(manifest(ROOT / source).relative_to(ROOT)) for source in LINKS.values()}
         files = {str(p.relative_to(ROOT)) for p in (ROOT / 'agent-workflow').rglob('*') if p.is_file()}
-        self.assertEqual(files, expected | {'agent-workflow/global.md'})
+        self.assertEqual(files, expected)
         names = set()
         descriptions = set()
         for source in sorted(expected - {'agent-workflow/AGENTS.md'}):

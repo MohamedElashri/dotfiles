@@ -113,10 +113,6 @@ macOS, without changing shell or application configuration:
 ./install.sh --agents-only --status
 ```
 
-The old `agent-workflow/global.md` path is a compatibility symlink to `AGENTS.md`,
-so earlier installed links keep working. Rerunning the installer updates those
-links to the new canonical path. Edit `agent-workflow/AGENTS.md` going forward.
-
 The regular installer/bootstrap also includes these links. Existing destination
 files are moved to `~/.dotfiles-backup/<run>/<original-path>` before replacement;
 review or merge any personal instructions from those backups. Repeat installs
