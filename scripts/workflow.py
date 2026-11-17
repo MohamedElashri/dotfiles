@@ -77,8 +77,9 @@ def configure_path():
     os.environ['PATH'] = os.pathsep.join(dict.fromkeys(paths + os.environ.get('PATH', '').split(os.pathsep)))
 
 
-def install_args(platform_name, *args):
-    return ['bash', ROOT / 'install.sh', '--platform', platform_name, *args]
+def install_args(platform_name, *args, with_agents=False):
+    return ['bash', ROOT / 'install.sh', '--platform', platform_name,
+            *(['--with-agents'] if with_agents else []), *args]
 
 
 def enable_hooks(dry=False):
@@ -308,7 +309,7 @@ def bootstrap(args):
     # Also runs in the Python-free entry point before first-stage provisioning.
     # The second check includes any frameworks created during setup.
     # Run the existing link/conflict preflight before package/network mutations.
-    preflight = run(install_args(platform_name, '--dry-run'), capture=True, check=False)
+    preflight = run(install_args(platform_name, '--dry-run', with_agents=args.with_agents), capture=True, check=False)
     if preflight.returncode:
         raise RuntimeError('Configuration conflicts must be resolved before provisioning.\n' + preflight.stdout + preflight.stderr)
     cross_preview = args.dry_run and platform_name != os_name()
@@ -351,7 +352,7 @@ def bootstrap(args):
         assets(asset_args)
     # Frameworks exist before linking their custom configuration. This also
     # keeps asset conflicts from occurring after unrelated app files changed.
-    run(install_args(platform_name, *(['--dry-run'] if args.dry_run else [])))
+    run(install_args(platform_name, *(['--dry-run'] if args.dry_run else []), with_agents=args.with_agents))
     enable_hooks(args.dry_run)
     if selected_fonts:
         fonts(argparse.Namespace(families=selected_fonts, list=False, dry_run=args.dry_run,
@@ -380,8 +381,8 @@ def ensure_clean():
         raise RuntimeError('This branch has no upstream. Configure its tracking branch before syncing.')
 
 
-def check_existing(platform_name):
-    result = run(install_args(platform_name, '--check-existing'), capture=True, check=False)
+def check_existing(platform_name, *, with_agents=False):
+    result = run(install_args(platform_name, '--check-existing', with_agents=with_agents), capture=True, check=False)
     if result.returncode:
         raise RuntimeError('Existing files need review before syncing. Copy desired edits into the checkout first.\n' + result.stdout + result.stderr)
 
@@ -390,7 +391,7 @@ def sync(args):
     platform_name = os_name(args.platform)
     ensure_clean()
     check_rendered()
-    check_existing(platform_name)
+    check_existing(platform_name, with_agents=args.with_agents)
     groups = enabled_assets()
     groups = sorted(set(groups))
     if args.check:
@@ -399,12 +400,12 @@ def sync(args):
     run(['git', '-C', ROOT, 'pull', '--ff-only'], dry=args.dry_run)
     # A new upstream version can introduce new target paths or generated output.
     check_rendered()
-    check_existing(platform_name)
-    run(install_args(platform_name, '--dry-run'))
+    check_existing(platform_name, with_agents=args.with_agents)
+    run(install_args(platform_name, '--dry-run', with_agents=args.with_agents))
     if not args.dry_run:
-        run(install_args(platform_name))
+        run(install_args(platform_name, with_agents=args.with_agents))
         enable_hooks()
-        run(install_args(platform_name, '--status'))
+        run(install_args(platform_name, '--status', with_agents=args.with_agents))
     if groups:
         assets(argparse.Namespace(platform=platform_name, group=groups, dry_run=args.dry_run, update=True))
         if not args.dry_run:
@@ -430,7 +431,7 @@ def doctor(args):
         warnings += level == 'WARN'
 
     platform_name = os_name(args.platform)
-    status = run(install_args(platform_name, '--status'), capture=True, check=False)
+    status = run(install_args(platform_name, '--status', with_agents=args.with_agents), capture=True, check=False)
     if status.returncode:
         report('FAIL', 'Managed configuration links need attention.\n' + status.stdout + status.stderr)
     else:
@@ -573,12 +574,14 @@ def fonts(args):
     return 0
 
 
-def parser():
+def parser(include_agents=False):
     result = argparse.ArgumentParser(prog='dotfiles', description=__doc__)
     commands = result.add_subparsers(dest='command', required=True)
     for name in ('bootstrap', 'doctor', 'sync', 'assets', 'fonts'):
         command = commands.add_parser(name)
         command.add_argument('--platform', choices=('linux', 'mac'))
+        if name in ('bootstrap', 'doctor', 'sync'):
+            command.add_argument('--with-agents', action='store_true', help='Include optional agent instruction and skill links')
         if name != 'doctor':
             command.add_argument('--dry-run', action='store_true')
         if name == 'bootstrap':
@@ -605,14 +608,24 @@ def parser():
         command.set_defaults(func=globals()[name])
     commands.add_parser('hooks').set_defaults(func=lambda args: enable_hooks() or 0)
     commands.add_parser('render').set_defaults(func=lambda args: run([sys.executable, ROOT / 'scripts/render_configs.py']).returncode)
+    if include_agents:
+        try:
+            import agent_tools
+        except ModuleNotFoundError as error:
+            if error.name not in ('agent_tools', 'agent_evals', 'agent_grading', 'agent_process'):
+                raise
+            raise RuntimeError('Optional agent workflow files are unavailable in this checkout.') from None
+        agent_tools.add_parser(commands).set_defaults(func=lambda args: agent_tools.main(args, ROOT))
+    else:
+        commands.add_parser('agents', help='Optional coding-agent tools')
     return result
 
 
 def main():
     sys.stdout.reconfigure(line_buffering=True)
     configure_path()
-    args = parser().parse_args()
     try:
+        args = parser(include_agents=sys.argv[1:2] == ['agents']).parse_args()
         return args.func(args)
     except (RuntimeError, OSError, ValueError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
         print(f'dotfiles: {error}', file=sys.stderr)

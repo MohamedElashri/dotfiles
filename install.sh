@@ -37,6 +37,7 @@ STATUS=0
 LIST=0
 CHECK_EXISTING=0
 AGENTS_ONLY=0
+WITH_AGENTS=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --platform) [ "$#" -ge 2 ] || exit 2; case "$2" in linux) OS=Linux ;; mac) OS=Darwin ;; *) echo 'Use --platform linux|mac' >&2; exit 2 ;; esac; shift ;;
@@ -45,7 +46,8 @@ while [ "$#" -gt 0 ]; do
     --list|--manifest) LIST=1 ;;
     --check-existing) CHECK_EXISTING=1 ;;
     --agents-only) AGENTS_ONLY=1 ;;
-    --help|-h) echo 'Usage: ./install.sh [--platform linux|mac] [--agents-only] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
+    --with-agents) WITH_AGENTS=1 ;;
+    --help|-h) echo 'Usage: ./install.sh [--platform linux|mac] [--with-agents|--agents-only] [--dry-run|--status|--list|--manifest|--check-existing]'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -71,15 +73,17 @@ add zsh/.zshrc .zshrc
 add config/git/.gitconfig .gitconfig
 add config/git/.stCommitMsg .stCommitMsg
 add config/git/ignore .config/dotfiles/git-ignore
-# Share instructions and portable skills without managing private harness state.
-add agent-workflow/AGENTS.md .codex/AGENTS.md
-add agent-workflow/AGENTS.md .claude/CLAUDE.md
-add agent-workflow/AGENTS.md .config/opencode/AGENTS.md
-add agent-workflow/AGENTS.md .pi/agent/AGENTS.md
-for skill in research-audit engineering-audit; do
-  add "agent-workflow/skills/$skill" ".agents/skills/$skill"
-  add "agent-workflow/skills/$skill" ".claude/skills/$skill"
-done
+# Classic dotfiles never require agent sources or access harness directories.
+if [ "$WITH_AGENTS" = 1 ] || [ "$AGENTS_ONLY" = 1 ]; then
+  add agent-workflow/AGENTS.md .codex/AGENTS.md
+  add agent-workflow/AGENTS.md .claude/CLAUDE.md
+  add agent-workflow/AGENTS.md .config/opencode/AGENTS.md
+  add agent-workflow/AGENTS.md .pi/agent/AGENTS.md
+  for skill in research-audit engineering-audit cuda-performance; do
+    add "agent-workflow/skills/$skill" ".agents/skills/$skill"
+    add "agent-workflow/skills/$skill" ".claude/skills/$skill"
+  done
+fi
 add config/tmux/.tmux.conf .tmux.conf
 add config/editors/zed/settings.json .config/zed/settings.json
 add config/terminals/ghostty/config .config/ghostty/config

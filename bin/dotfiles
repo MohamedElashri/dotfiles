@@ -31,13 +31,15 @@ if [ "$python_ready" = 0 ]; then
   selected_fonts=0
   skip_fonts=0
   skip_apps=0
+  with_agents=0
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --help|-h) echo 'Usage: dotfiles bootstrap [--dry-run] [--skip-packages] [--skip-assets] [--skip-apps] [--skip-dev] [--skip-fonts|--fonts FAMILY ...] [--skip-shell] [--platform linux|mac]'; exit 0 ;;
+      --help|-h) echo 'Usage: dotfiles bootstrap [--dry-run] [--with-agents] [--skip-packages] [--skip-assets] [--skip-apps] [--skip-dev] [--skip-fonts|--fonts FAMILY ...] [--skip-shell] [--platform linux|mac]'; exit 0 ;;
       --skip-packages) echo '--skip-packages requires an existing Python 3.9+ installation.' >&2; exit 1 ;;
       --dry-run) preview=1; font_mode=0 ;;
       --skip-fonts) skip_fonts=1; font_mode=0 ;;
       --skip-apps) skip_apps=1; font_mode=0 ;;
+      --with-agents) with_agents=1; font_mode=0 ;;
       --skip-assets|--skip-dev|--skip-shell) font_mode=0 ;;
       --platform) shift; case "${1:-}" in linux|mac) platform_args=(--platform "$1") ;; *) echo 'Use --platform linux|mac' >&2; exit 2 ;; esac; font_mode=0 ;;
       --fonts) font_mode=1; selected_fonts=1; [ "$#" -gt 1 ] && [[ "$2" != --* ]] || { echo '--fonts requires a family.' >&2; exit 2; } ;;
@@ -64,7 +66,9 @@ if [ "$python_ready" = 0 ]; then
   fi
   # Conflict checks are written in Bash and do not need Python. Do not install
   # prerequisites first if known managed paths already require reconciliation.
-  bash "$root/install.sh" "${platform_args[@]}" --dry-run >/dev/null
+  preflight_args=("${platform_args[@]}" --dry-run)
+  if [ "$with_agents" = 1 ]; then preflight_args+=(--with-agents); fi
+  bash "$root/install.sh" "${preflight_args[@]}" >/dev/null
   bash "$root/scripts/prerequisites.sh" "${platform_args[@]}"
   if ! command -v brew >/dev/null 2>&1; then
     for prefix in /opt/homebrew /home/linuxbrew/.linuxbrew /usr/local; do

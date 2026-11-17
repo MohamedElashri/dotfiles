@@ -27,3 +27,14 @@ remediation or the invoking task authorizes edits.
 7. Summarize checks as PASS, FAIL, or NOT RUN and explain material limitations.
    Do not assert correctness solely because tests passed or an audit found
    nothing. If evidence is missing, specify the next check that could resolve it.
+
+For scientific analysis, read [scientific-review.md](references/scientific-review.md)
+when data provenance, units, statistics, or physics semantics determine correctness.
+
+For an independent review, run objective checks first, then give a separate
+reviewer the diff, relevant interfaces/tests, and acceptance criteria. Withhold
+implementation narratives and desired findings. Each finding must state its
+location, trigger, impact, evidence, and uncertainty. Reproduce a finding before
+requesting a targeted repair; do not manufacture issues to fill a quota.
+A manual review is trusted. Claim enforced read-only review only when all tools
+are restricted; a read-only shell setting alone does not establish that boundary.

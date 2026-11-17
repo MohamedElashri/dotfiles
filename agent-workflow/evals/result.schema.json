@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dotfiles:agent-eval:result:1",
+  "title": "Metadata-only evaluation result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "kind",
+    "case_id",
+    "case_version",
+    "case_hash",
+    "fixture_hash",
+    "grader_hash",
+    "base_commit",
+    "harness",
+    "harness_version",
+    "model",
+    "policy_hash",
+    "policy_mode",
+    "platform",
+    "execution_mode",
+    "started_at",
+    "finished_at",
+    "duration_seconds",
+    "status",
+    "reason",
+    "agent_executed",
+    "process",
+    "checks",
+    "retry_count",
+    "usage",
+    "cost_usd",
+    "runner_hash",
+    "limits"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$"
+    },
+    "kind": {
+      "enum": [
+        "grader",
+        "live"
+      ]
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[A-Z][0-9]{2}$"
+    },
+    "case_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "case_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "fixture_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "grader_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "base_commit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{40,64}$"
+    },
+    "harness": {
+      "enum": [
+        null,
+        "codex",
+        "claude",
+        "opencode",
+        "pi"
+      ]
+    },
+    "harness_version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100
+    },
+    "policy_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "policy_mode": {
+      "enum": [
+        "current",
+        "baseline"
+      ]
+    },
+    "platform": {
+      "enum": [
+        "linux",
+        "darwin"
+      ]
+    },
+    "execution_mode": {
+      "enum": [
+        "offline-trusted",
+        "trusted-native-gated"
+      ]
+    },
+    "started_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "duration_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked",
+        "error",
+        "unknown"
+      ]
+    },
+    "reason": {
+      "enum": [
+        null,
+        "pending",
+        "live_opt_in_required",
+        "unsupported_profile",
+        "unsupported_harness",
+        "harness_unavailable",
+        "unsupported_cli",
+        "sandbox_unavailable",
+        "auth_unavailable",
+        "timeout",
+        "output_limit",
+        "disk_limit",
+        "cancelled",
+        "spawn_error",
+        "harness_failed",
+        "candidate_invalid",
+        "git_metadata_changed",
+        "grader_failed",
+        "internal_error",
+        "agent_activity_unconfirmed",
+        "cleanup_failed"
+      ]
+    },
+    "agent_executed": {
+      "type": "boolean"
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exit_code",
+        "reason",
+        "output_bytes"
+      ],
+      "properties": {
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reason": {
+          "enum": [
+            null,
+            "pending",
+            "live_opt_in_required",
+            "unsupported_profile",
+            "unsupported_harness",
+            "harness_unavailable",
+            "unsupported_cli",
+            "sandbox_unavailable",
+            "auth_unavailable",
+            "timeout",
+            "output_limit",
+            "disk_limit",
+            "cancelled",
+            "spawn_error",
+            "harness_failed",
+            "candidate_invalid",
+            "git_metadata_changed",
+            "grader_failed",
+            "internal_error",
+            "agent_activity_unconfirmed",
+            "cleanup_failed"
+          ]
+        },
+        "output_bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "exit_code"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z_]{1,32}$"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "blocked",
+              "error",
+              "unknown"
+            ]
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "retry_count": {
+      "const": 0
+    },
+    "usage": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cached_input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "cost_usd": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "runner_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeout_seconds",
+        "output_bytes",
+        "disk_bytes"
+      ],
+      "properties": {
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "disk_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "description": "Validated by the matching Python stdlib validator. No prompts, transcripts, commands, environment dumps, repository paths or credentials. retry_count counts runner retries; native provider retry telemetry is not inferred. null cost is unknown, not zero."
+}

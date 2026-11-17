@@ -15,6 +15,8 @@ LINKS = {
     '.agents/skills/engineering-audit': 'agent-workflow/skills/engineering-audit',
     '.claude/skills/research-audit': 'agent-workflow/skills/research-audit',
     '.claude/skills/engineering-audit': 'agent-workflow/skills/engineering-audit',
+    '.agents/skills/cuda-performance': 'agent-workflow/skills/cuda-performance',
+    '.claude/skills/cuda-performance': 'agent-workflow/skills/cuda-performance',
 }
 SKILL_TARGETS = [target for target, source in LINKS.items() if '/skills/' in source]
 AGENT_PARENTS = ['.codex', '.agents', '.agents/skills', '.claude', '.claude/skills',
@@ -57,7 +59,7 @@ class AgentWorkflowTests(unittest.TestCase):
 
     def install(self, home, platform, *args, check=True):
         return self.run_command(home, 'bash', str(ROOT / 'install.sh'),
-                                '--platform', platform, *args, check=check)
+                                '--platform', platform, '--with-agents', *args, check=check)
 
     def assert_links(self, home):
         self.assertFalse((home / '.codex').is_symlink())
@@ -298,7 +300,7 @@ class AgentWorkflowTests(unittest.TestCase):
             for location in (str(home) + '/', str(alias), str(alias) + '/'):
                 with self.subTest(platform=platform, home=location):
                     env = dict(HOME=location, PATH='/usr/bin:/bin')
-                    result = subprocess.run(['bash', str(ROOT / 'install.sh'), '--platform', platform],
+                    result = subprocess.run(['bash', str(ROOT / 'install.sh'), '--platform', platform, '--with-agents'],
                                             env=env, text=True, capture_output=True, timeout=15)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assert_links(home)
@@ -408,8 +410,8 @@ class AgentWorkflowTests(unittest.TestCase):
 
     def test_skill_packaging_and_frontmatter(self):
         expected = {str(manifest(ROOT / source).relative_to(ROOT)) for source in LINKS.values()}
-        files = {str(p.relative_to(ROOT)) for p in (ROOT / 'agent-workflow').rglob('*') if p.is_file()}
-        self.assertEqual(files, expected)
+        files = {str(p.relative_to(ROOT)) for p in (ROOT / 'agent-workflow/skills').glob('*/SKILL.md')}
+        self.assertEqual(files, expected - {'agent-workflow/AGENTS.md'})
         names = set()
         descriptions = set()
         for source in sorted(expected - {'agent-workflow/AGENTS.md'}):
@@ -435,7 +437,7 @@ class AgentWorkflowTests(unittest.TestCase):
             self.assertLessEqual(len(metadata['description']), 1024)
             descriptions.add(metadata['description'])
             self.assertTrue('\n'.join(lines[end + 1:]).strip())
-        self.assertEqual(len(descriptions), 2)
+        self.assertEqual(len(descriptions), 3)
 
     def test_local_git_ignore_override_is_applied_last(self):
         for platform in ('linux', 'mac'):

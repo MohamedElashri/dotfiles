@@ -252,12 +252,12 @@ class InstallTests(unittest.TestCase):
                 target_home.mkdir()
                 shutil.copytree(ROOT, original, ignore=shutil.ignore_patterns('.git', '.claude', '.cache', 'fonts', '__pycache__'))
                 env = dict(self.env, HOME=str(target_home), ZDOTDIR=str(target_home))
-                result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, env=env)
+                result = self.run_cmd('bash', str(original/'install.sh'), '--platform', platform, '--with-agents', env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 original.rename(moved)
-                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--check-existing', env=env)
+                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--with-agents', '--check-existing', env=env)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, env=env)
+                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--with-agents', env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((target_home/'.config/dotfiles/profile').read_text().strip(), 'personal')
                 expected_profile = moved/'shell/.profile'
@@ -270,7 +270,7 @@ class InstallTests(unittest.TestCase):
                 for name in ('research-audit', 'engineering-audit'):
                     self.assertEqual((target_home/'.claude/skills'/name/'SKILL.md').resolve(strict=True),
                                      (moved/'agent-workflow/skills'/name/'SKILL.md').resolve(strict=True))
-                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--status', env=env)
+                result = self.run_cmd('bash', str(moved/'install.sh'), '--platform', platform, '--with-agents', '--status', env=env)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 result = self.run_cmd('sh', '-c', '. "$HOME/.profile"; command -v terminal_quran.sh', env=env)
                 self.assertEqual(Path(result.stdout.strip()).resolve(), (moved/'bin/terminal_quran.sh').resolve())

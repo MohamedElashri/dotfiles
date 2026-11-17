@@ -65,7 +65,8 @@ class WorkflowTests(unittest.TestCase):
                               check=True, text=True, capture_output=True)
 
     def sync_args(self, **kwargs):
-        return argparse.Namespace(platform='linux', check=False, dry_run=False, **kwargs)
+        return argparse.Namespace(**dict({'platform': 'linux', 'check': False,
+                                         'dry_run': False, 'with_agents': False}, **kwargs))
 
     def configure_remote(self):
         remote = self.base / 'remote.git'
@@ -96,6 +97,55 @@ class WorkflowTests(unittest.TestCase):
                                    ('.config/zed/settings.json', 'config/editors/zed/settings.json'),
                                    ('.tmux.conf', 'config/tmux/.tmux.conf')]:
                 self.assertEqual((self.home / target).resolve(), self.root / source)
+
+    def test_classic_install_and_cli_work_without_agent_workflow_files(self):
+        shutil.rmtree(self.root / 'agent-workflow')
+        for path in (self.root / 'scripts').glob('agent_*.py'):
+            path.unlink()
+        self.git('add', '-u')
+        self.git('commit', '-qm', 'Remove optional agent workflow from fixture')
+        self.configure_remote()
+        # Occupied harness parents must not affect classic setup or diagnostics.
+        external = self.base / 'private harness state'
+        external.mkdir()
+        sentinel = external / 'keep'
+        sentinel.write_text('preserve private harness state')
+        for name in ('.codex', '.claude', '.agents', '.pi'):
+            (self.home / name).symlink_to(external, target_is_directory=True)
+        for platform in ('linux', 'mac'):
+            for option in ('--list', '--dry-run', '', '--status', '--check-existing'):
+                result = subprocess.run(['bash', str(self.root / 'install.sh'), '--platform', platform,
+                                         *([option] if option else [])], text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn('agent-workflow', result.stdout)
+        # CLI maintenance uses the host platform after the cross-platform matrix.
+        subprocess.run(['bash', str(self.root / 'install.sh'), '--platform', workflow.os_name()],
+                       check=True, text=True, capture_output=True)
+        commands = [(['--help'], 0), (['fonts', '--list'], 0), (['render'], 0),
+                    (['bootstrap', '--dry-run', '--skip-packages', '--skip-apps',
+                      '--skip-assets', '--skip-fonts', '--skip-shell'], 0),
+                    (['doctor', '--strict'], 1), (['sync', '--check'], 0), (['sync'], 0)]
+        for arguments, expected in commands:
+            result = subprocess.run([str(self.root / 'bin/dotfiles'), *arguments],
+                                    text=True, capture_output=True)
+            self.assertEqual(result.returncode, expected, (arguments, result.stdout, result.stderr))
+            self.assertNotIn('Traceback', result.stderr)
+            self.assertNotIn('agent-workflow', result.stdout)
+        unavailable = subprocess.run([str(self.root / 'bin/dotfiles'), 'agents', 'eval', 'list'],
+                                     text=True, capture_output=True)
+        self.assertEqual(unavailable.returncode, 1)
+        self.assertIn('Optional agent workflow files are unavailable', unavailable.stderr)
+        self.assertEqual(list(external.iterdir()), [sentinel])
+        self.assertEqual(sentinel.read_text(), 'preserve private harness state')
+
+    def test_bootstrap_with_agents_checks_conflicts_before_provisioning(self):
+        (self.home / '.codex').write_text('private harness state')
+        args = workflow.parser().parse_args(['bootstrap', '--with-agents', '--dry-run', '--skip-apps'])
+        with mock.patch.object(workflow, 'assets') as assets, self.assertRaisesRegex(RuntimeError, 'Blocked configuration parent'):
+            workflow.bootstrap(args)
+        assets.assert_not_called()
+        self.assertEqual((self.home / '.codex').read_text(), 'private harness state')
+        self.assertFalse((self.home / '.bashrc').exists())
 
     def test_symlinked_application_parents_are_refused_without_writes(self):
         for target, source in [('.waveterm/config', 'config/terminals/waveterm/config'),
@@ -149,7 +199,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.git('status', '--porcelain'), '')
         self.assertEqual(self.git('rev-parse', 'HEAD'), head)
         self.assertIn('brew install', output.getvalue())
-        # Portable instruction paths are expected; AI application packages are not.
+        # Classic setup never installs AI application packages or instructions.
+        self.assertNotIn('agent-workflow', output.getvalue())
         package_commands = [shlex.split(line.removeprefix('Would run: '))
                             for line in output.getvalue().splitlines()
                             if line.startswith('Would run: brew install ')]
@@ -187,7 +238,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_sync_fast_forwards_from_other_device_and_relinks_missing_files(self):
         peer = self.configure_remote()
-        self.install()
+        self.install('--with-agents')
         (self.home / '.config/gh/config.yml').unlink()
         agent_targets = ['.codex/AGENTS.md', '.claude/CLAUDE.md',
                          '.config/opencode/AGENTS.md', '.pi/agent/AGENTS.md',
@@ -198,7 +249,7 @@ class WorkflowTests(unittest.TestCase):
             (self.home / target).unlink()
         self.advance_remote(peer)
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(workflow.sync(self.sync_args()), 0)
+            self.assertEqual(workflow.sync(self.sync_args(with_agents=True)), 0)
         self.assertEqual(self.git('rev-parse', 'HEAD'), self.git('rev-parse', 'HEAD', cwd=peer))
         self.assertTrue((self.home / '.config/gh/config.yml').is_symlink())
         for target in agent_targets:
@@ -254,21 +305,21 @@ class WorkflowTests(unittest.TestCase):
 
     def test_sync_preserves_replaced_agent_instructions_before_fetch(self):
         peer = self.configure_remote()
-        self.install()
+        self.install('--with-agents')
         target = self.home / '.codex/AGENTS.md'
         target.unlink()
         target.write_text('Device-owned instructions\n')
         old_remote = self.git('rev-parse', 'origin/main')
         self.advance_remote(peer)
         with self.assertRaisesRegex(RuntimeError, 'Existing files need review'):
-            workflow.sync(self.sync_args())
+            workflow.sync(self.sync_args(with_agents=True))
         self.assertEqual(target.read_text(), 'Device-owned instructions\n')
         self.assertEqual(self.git('rev-parse', 'origin/main'), old_remote)
         self.assertFalse((self.home / '.dotfiles-backup').exists())
 
     def test_sync_refuses_symlinked_agent_parent_before_fetch(self):
         peer = self.configure_remote()
-        self.install()
+        self.install('--with-agents')
         parent = self.home / '.agents/skills'
         external = self.base / 'shared skills'
         shutil.move(str(parent), external)
@@ -278,7 +329,7 @@ class WorkflowTests(unittest.TestCase):
         old_remote = self.git('rev-parse', 'origin/main')
         self.advance_remote(peer)
         with self.assertRaisesRegex(RuntimeError, 'Blocked configuration parent'):
-            workflow.sync(self.sync_args())
+            workflow.sync(self.sync_args(with_agents=True))
         self.assertEqual(self.git('rev-parse', 'origin/main'), old_remote)
         self.assertEqual(source.read_bytes(), original)
         self.assertTrue(parent.is_symlink())
@@ -306,7 +357,7 @@ class WorkflowTests(unittest.TestCase):
         old_remote = self.git('rev-parse', 'origin/main')
         for check, dry in [(True, False), (False, True)]:
             with contextlib.redirect_stdout(io.StringIO()):
-                workflow.sync(argparse.Namespace(platform='linux', check=check, dry_run=dry))
+                workflow.sync(argparse.Namespace(platform='linux', check=check, dry_run=dry, with_agents=False))
         self.assertEqual(self.git('rev-parse', 'HEAD'), old_head)
         self.assertEqual(self.git('rev-parse', 'origin/main'), old_remote)
         self.assertFalse((self.home / '.dotfiles-backup').exists())
@@ -326,7 +377,7 @@ class WorkflowTests(unittest.TestCase):
                     fixture = self.base / 'regular-skill.md'
                     fixture.write_bytes(original)
                     source.symlink_to(fixture)
-                result = subprocess.run(['bash', str(self.root / 'install.sh'), '--platform', 'linux'],
+                result = subprocess.run(['bash', str(self.root / 'install.sh'), '--platform', 'linux', '--with-agents'],
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode, 1)
                 self.assertIn('Skill source must contain a regular manifest', result.stderr)
@@ -391,13 +442,13 @@ class WorkflowTests(unittest.TestCase):
 
 
     def test_doctor_reports_missing_tools_without_reading_external_settings(self):
-        self.install()
+        self.install('--with-agents')
         (self.home / '.agents/skills/engineering-audit').unlink()
         state = self.home / '.claude/plugins/installed_plugins.json'
         state.parent.mkdir(parents=True)
         state.write_text('External state is deliberately not JSON: DO_NOT_DISPLAY_TEST_VALUE')
         with mock.patch.object(workflow.shutil, 'which', return_value=None), contextlib.redirect_stdout(io.StringIO()) as output:
-            result = workflow.doctor(argparse.Namespace(platform='linux', online=False, strict=False))
+            result = workflow.doctor(argparse.Namespace(platform='linux', online=False, strict=False, with_agents=True))
         self.assertEqual(result, 1)
         self.assertIn('Missing tool: nvim', output.getvalue())
         self.assertIn('Missing tool: rg', output.getvalue())

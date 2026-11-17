@@ -30,10 +30,16 @@ For a server, use `--skip-apps --skip-shell`. Other selections are `--skip-dev`,
 `--skip-fonts`, `--fonts meslo`, `--skip-assets`, or `--skip-packages --skip-apps`
 for preinstalled tools. Run `./bin/dotfiles bootstrap --help` for all options.
 
+Classic dotfiles are the default. Setup, sync and diagnostics work without the
+agent workflow files, harness binaries, accounts, or evaluation dependencies.
+The link-only installer needs Bash and standard system utilities; the main CLI
+uses Python 3.9+ and its standard library.
+
 | Install scope | Preview | Install |
 | --- | --- | --- |
 | Configuration links | `./install.sh --dry-run` | `./install.sh` |
-| Agent instructions and audit skills | `./install.sh --agents-only --dry-run` | `./install.sh --agents-only` |
+| Configuration and agent links | `./install.sh --with-agents --dry-run` | `./install.sh --with-agents` |
+| Agent instructions and shared skills | `./install.sh --agents-only --dry-run` | `./install.sh --agents-only` |
 
 Replaced files are backed up under `~/.dotfiles-backup/`. Put wanted device
 settings in the local overrides below. Parent directories must be real,
@@ -57,6 +63,9 @@ shell/editor assets. It stops on replaced links or divergent history. Inspect
 links with `./install.sh --status` (`--agents-only` limits the scope). Preserve
 wanted edits before reinstalling; rerun the installer after moving the checkout.
 Use `dotfiles doctor --online` to include GitHub authentication checks.
+Add `--with-agents` to bootstrap, sync, doctor, or the installer when you want
+agent links included. This choice is explicit for each command; ordinary commands
+leave existing agent files alone.
 
 ## Customize
 
@@ -82,6 +91,10 @@ included there before `Host *`. Check effective settings with `ssh -G <alias>`.
 
 ## Coding agents
 
+Opt in with `./install.sh --agents-only`, or add `--with-agents` to bootstrap or
+the installer for combined setup. Classic dotfiles do not load the agent Python
+modules or require anything under `agent-workflow/`.
+
 Edit [`agent-workflow/AGENTS.md`](agent-workflow/AGENTS.md) here to change global
 development defaults, then start new agent sessions. All four harnesses link to
 that one file, so content edits need no reinstall.
@@ -98,11 +111,49 @@ links to the same source at the harness's documented instruction path. Repositor
 instructions and harness overrides can change which guidance applies; inspect
 loaded context if defaults are missing. `--status` verifies links only.
 
-Audit skills link into `~/.agents/skills/` and `~/.claude/skills/`. Invoke
+Shared skills link into `~/.agents/skills/` and `~/.claude/skills/`. Invoke
 `$research-audit` / `$engineering-audit` in Codex, or `/research-audit` /
 `/engineering-audit` in Claude Code. Audits are read-only unless edits are
 authorized. Harness binaries, credentials, settings, sessions, and unrelated
-skills stay local. Review project agent guidance before adding it to Git.
+skills stay local. The specialized `cuda-performance` skill is also installed;
+it does not add domain assumptions to the global policy. Review project agent
+guidance before adding it to Git.
+
+Project onboarding and local diagnostics:
+
+```bash
+dotfiles agents doctor
+dotfiles agents init --target /absolute/project/path --dry-run
+```
+
+Initialization preserves existing project guidance and never changes ignore
+rules. Add `--with-plan` to create a single plan template when one is absent.
+Source templates live in `agent-workflow/templates/`.
+
+Synthetic evaluations separate offline scoring from live agent execution:
+
+```bash
+dotfiles agents eval list
+dotfiles agents eval score --case E03 --candidate /absolute/candidate --trusted-candidate
+dotfiles agents eval report --format json
+dotfiles agents eval prune --days 30
+```
+
+Functional scoring executes trusted submitted code; it is not a hostile-code
+sandbox. A live run needs separate authorization and explicit limits, for example:
+
+```bash
+dotfiles agents eval run --case E03 --harness codex --live --profile trusted \
+  --timeout 180 --output-limit 1048576 --auth-file "$HOME/.codex/auth.json"
+```
+
+Only the Codex 0.169.x adapter is implemented. It requires a passing native
+boundary probe and refuses protected/adversarial modes. Reports contain hashes,
+versions, limits, outcomes and available usage metadata, with unknown cost kept
+as null. State stays outside Git under the private XDG state directory. Pruning
+is a preview unless `--apply` is supplied. See [contracts, capabilities, safety
+limits, and recovery](docs/agent-evaluations.md) for details. Normal setup and CI
+remain offline with respect to model execution.
 
 ## Checks
 

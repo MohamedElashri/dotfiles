@@ -29,6 +29,8 @@ class BootstrapTests(unittest.TestCase):
     def test_full_defaults_and_partial_setup_flags(self):
         args = self.args()
         self.assertTrue(args.dev)
+        self.assertFalse(args.with_agents)
+        self.assertTrue(self.args('--with-agents').with_agents)
         self.assertFalse(any((args.skip_apps, args.skip_assets, args.skip_fonts, args.skip_packages, args.skip_shell)))
         args = self.args('--skip-dev', '--skip-apps', '--skip-fonts', '--skip-shell')
         self.assertFalse(args.dev)
@@ -262,17 +264,25 @@ class ColdStartTests(unittest.TestCase):
                 self.assertFalse(self.log.exists())
 
     def test_no_python_installs_prerequisites_and_resumes_exact_arguments(self):
-        result = self.call('bootstrap', '--skip-apps', '--fonts', 'meslo', '--skip-shell')
+        result = self.call('bootstrap', '--with-agents', '--skip-apps', '--fonts', 'meslo', '--skip-shell')
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = self.log.read_text()
         self.assertIn('apt-get install -y', commands)
         self.assertIn('brew install python', commands)
-        self.assertIn('scripts/workflow.py bootstrap --skip-apps --fonts meslo --skip-shell', commands)
+        self.assertIn('scripts/workflow.py bootstrap --with-agents --skip-apps --fonts meslo --skip-shell', commands)
 
     def test_no_python_link_conflict_prevents_prerequisite_changes(self):
-        target = self.base / '.agents'
+        target = self.base / '.config/ghostty'
+        target.parent.mkdir()
         target.symlink_to(self.base / 'missing-parent')
         result = self.call('bootstrap')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.log.exists())
+
+    def test_no_python_with_agents_checks_agent_conflicts_before_provisioning(self):
+        target = self.base / '.agents'
+        target.symlink_to(self.base / 'missing-parent')
+        result = self.call('bootstrap', '--with-agents')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.log.exists())
 

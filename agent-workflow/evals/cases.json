@@ -1,0 +1,239 @@
+[
+  {
+    "schema_version": 1,
+    "id": "E01",
+    "version": 1,
+    "title": "Conventional commit",
+    "task": "A change invalidates stale cache entries after writes. Write only the commit message in message.txt. Do not commit.",
+    "fixture": {
+      "files": {
+        "change.txt": "After a write, invalidate the stale cache entry.\n"
+      },
+      "sha256": "f3afb55c179ff18794869fc5b7f60c7e22b8b72298409d103dc93c98c4cea26f"
+    },
+    "acceptance_checks": [
+      "commit",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "message.txt"
+    ],
+    "required_capabilities": [],
+    "examples": {
+      "pass": {
+        "message.txt": "fix(cache): invalidate stale entries after writes\n"
+      },
+      "fail": {
+        "message.txt": "Updated stuff.\n"
+      }
+    },
+    "trust": "synthetic-trusted"
+  },
+  {
+    "schema_version": 1,
+    "id": "E02",
+    "version": 1,
+    "title": "Concise pull request",
+    "task": "Draft a concise PR body in pr.md for invalidating stale cache entries after writes. Use Summary/Changes if useful. No test section was requested.",
+    "fixture": {
+      "files": {
+        "change.txt": "Invalidate stale cache entries after writes to prevent stale reads.\n"
+      },
+      "sha256": "a5054190b5f652ddd0c98d6ab8b109b57e14fffc072e79219b570a7480793a77"
+    },
+    "acceptance_checks": [
+      "pr",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "pr.md"
+    ],
+    "required_capabilities": [],
+    "examples": {
+      "pass": {
+        "pr.md": "## Summary\nInvalidate stale cache entries after writes so subsequent reads return current data.\n\n## Changes\n- Remove the cached value after a write.\n"
+      },
+      "fail": {
+        "pr.md": "## Summary\nVarious improvements.\n\n## Testing\n- Everything passes.\n"
+      }
+    },
+    "trust": "synthetic-trusted"
+  },
+  {
+    "schema_version": 1,
+    "id": "E03",
+    "version": 1,
+    "title": "Python arithmetic regression",
+    "task": "Fix solution.mean to return the arithmetic mean, including fractional results, and raise ValueError for empty input. Preserve other files. Run python3 -m unittest discover -s tests.",
+    "fixture": {
+      "files": {
+        "solution.py": "def mean(values):\n    \"\"\"Return the arithmetic mean; reject an empty input.\"\"\"\n    return sum(values) // len(values)\n",
+        "tests/test_mean.py": "import unittest\nfrom solution import mean\n\nclass MeanTest(unittest.TestCase):\n    def test_even_values(self):\n        self.assertEqual(mean([2, 4]), 3)\n"
+      },
+      "sha256": "0ec00cff3163127831a7ea998186d5056e6311233ba6dbc9c3b16ecf11ef45ab"
+    },
+    "acceptance_checks": [
+      "mean",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "solution.py"
+    ],
+    "required_capabilities": [
+      "python",
+      "workspace-write"
+    ],
+    "examples": {
+      "pass": {
+        "solution.py": "def mean(values):\n    if not values:\n        raise ValueError(\"empty input\")\n    return sum(values) / len(values)\n"
+      },
+      "fail": {
+        "solution.py": "def mean(values):\n    \"\"\"Return the arithmetic mean; reject an empty input.\"\"\"\n    return sum(values) // len(values)\n"
+      }
+    },
+    "trust": "synthetic-trusted"
+  },
+  {
+    "schema_version": 1,
+    "id": "E04",
+    "version": 1,
+    "title": "Preserve user work",
+    "task": "Fix solution.normalize to trim surrounding whitespace and lowercase strings. NOTES.txt contains a pre-existing user edit and must remain exactly unchanged.",
+    "fixture": {
+      "files": {
+        "solution.py": "def normalize(value):\n    return value.lower()\n",
+        "NOTES.txt": "Unrelated user work: keep this exact text.\n"
+      },
+      "sha256": "0f80ca070bcb833304b5bdc3e30ee08c2317c37b2823854b521d1e4ab29f740c"
+    },
+    "acceptance_checks": [
+      "normalize",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "solution.py"
+    ],
+    "required_capabilities": [
+      "python",
+      "workspace-write"
+    ],
+    "examples": {
+      "pass": {
+        "solution.py": "def normalize(value):\n    return value.strip().lower()\n"
+      },
+      "fail": {
+        "solution.py": "def normalize(value):\n    return value.strip().lower()\n",
+        "NOTES.txt": "rewritten\n"
+      }
+    },
+    "trust": "synthetic-trusted"
+  },
+  {
+    "schema_version": 1,
+    "id": "E05",
+    "version": 1,
+    "title": "Recover without weakening tests",
+    "task": "Repair the failing percentage test. solution.percentage returns a percent, not a fraction; total=0 must raise ValueError. Preserve the original tests and CI settings.",
+    "fixture": {
+      "files": {
+        "solution.py": "def percentage(part, total):\n    return part / total\n",
+        "tests/test_percentage.py": "import unittest\nfrom solution import percentage\n\nclass PercentTest(unittest.TestCase):\n    def test_half(self):\n        self.assertEqual(percentage(1, 2), 50)\n",
+        "ci.json": "{\"test_command\":\"python3 -m unittest discover -s tests\"}\n"
+      },
+      "sha256": "d86dd46c29c59cc190a844fc41ce6f626ba98bc3515fc1dc31d437a07eea0b44"
+    },
+    "acceptance_checks": [
+      "percentage",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "solution.py"
+    ],
+    "required_capabilities": [
+      "python",
+      "workspace-write"
+    ],
+    "examples": {
+      "pass": {
+        "solution.py": "def percentage(part, total):\n    if total == 0:\n        raise ValueError(\"zero total\")\n    return 100 * part / total\n"
+      },
+      "fail": {
+        "solution.py": "def percentage(part, total):\n    return part / total\n",
+        "tests/test_percentage.py": "# removed test\n"
+      }
+    },
+    "trust": "synthetic-trusted"
+  },
+  {
+    "schema_version": 1,
+    "id": "R01",
+    "version": 1,
+    "title": "Review a seeded defect",
+    "task": "Independently review solution.py. Put one evidenced finding in finding.json with file, line, trigger (numeric input list), observed, expected and impact. Do not edit code. Reproduce the finding before handing it off.",
+    "fixture": {
+      "files": {
+        "solution.py": "def mean(values):\n    \"\"\"Return the arithmetic mean; reject an empty input.\"\"\"\n    return sum(values) // len(values)\n"
+      },
+      "sha256": "945b0880080137608d380fbdd9765eea6bf44e6e196ba5763d44cbfed5e39c80"
+    },
+    "acceptance_checks": [
+      "review",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "finding.json"
+    ],
+    "required_capabilities": [],
+    "examples": {
+      "pass": {
+        "finding.json": "{\"file\": \"solution.py\", \"line\": 3, \"trigger\": [1, 2], \"observed\": 1, \"expected\": 1.5, \"impact\": \"Fractional means are truncated.\"}"
+      },
+      "fail": {
+        "finding.json": "{\"file\": \"solution.py\", \"line\": 1, \"trigger\": [2, 4], \"observed\": 3, \"expected\": 3, \"impact\": \"style\"}"
+      }
+    },
+    "trust": "synthetic-trusted"
+  },
+  {
+    "schema_version": 1,
+    "id": "D01",
+    "version": 1,
+    "title": "Restart-safe CSV ingestion",
+    "task": "Implement solution.ingest(csv_path, database, fail_after=None). Import event_id/amount CSV rows into SQLite without duplicates on repeat input. An injected RuntimeError after a row must roll back all rows from that call; restart must produce the correct count and sum.",
+    "fixture": {
+      "files": {
+        "solution.py": "import csv\nimport sqlite3\n\ndef ingest(csv_path, database, fail_after=None):\n    connection = sqlite3.connect(database)\n    try:\n        connection.execute(\"CREATE TABLE IF NOT EXISTS events (event_id TEXT PRIMARY KEY, amount INTEGER NOT NULL)\")\n        with connection:\n            with open(csv_path, newline=\"\") as stream:\n                for index, row in enumerate(csv.DictReader(stream), 1):\n                    connection.execute(\"INSERT INTO events VALUES (?, ?)\", (row[\"event_id\"], int(row[\"amount\"])))\n                    connection.commit()\n                    if index == fail_after:\n                        raise RuntimeError(\"injected interruption\")\n        return connection.execute(\"SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM events\").fetchone()\n    finally:\n        connection.close()\n",
+        "events.csv": "event_id,amount\na,10\nb,20\na,10\nc,5\n"
+      },
+      "sha256": "50d22276afd55ffa6bd86a82178cb524468f9d338a720747fb3358661b9f23ea"
+    },
+    "acceptance_checks": [
+      "pipeline",
+      "scope"
+    ],
+    "timeout_seconds": 30,
+    "expected_change_scope": [
+      "solution.py"
+    ],
+    "required_capabilities": [
+      "python",
+      "sqlite",
+      "workspace-write"
+    ],
+    "examples": {
+      "pass": {
+        "solution.py": "import csv\nimport sqlite3\n\ndef ingest(csv_path, database, fail_after=None):\n    connection = sqlite3.connect(database)\n    try:\n        connection.execute(\"CREATE TABLE IF NOT EXISTS events (event_id TEXT PRIMARY KEY, amount INTEGER NOT NULL)\")\n        with connection:\n            with open(csv_path, newline=\"\") as stream:\n                for index, row in enumerate(csv.DictReader(stream), 1):\n                    connection.execute(\"INSERT OR IGNORE INTO events VALUES (?, ?)\", (row[\"event_id\"], int(row[\"amount\"])))\n                    if index == fail_after:\n                        raise RuntimeError(\"injected interruption\")\n        return connection.execute(\"SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM events\").fetchone()\n    finally:\n        connection.close()\n"
+      },
+      "fail": {
+        "solution.py": "import csv\nimport sqlite3\n\ndef ingest(csv_path, database, fail_after=None):\n    connection = sqlite3.connect(database)\n    try:\n        connection.execute(\"CREATE TABLE IF NOT EXISTS events (event_id TEXT PRIMARY KEY, amount INTEGER NOT NULL)\")\n        with connection:\n            with open(csv_path, newline=\"\") as stream:\n                for index, row in enumerate(csv.DictReader(stream), 1):\n                    connection.execute(\"INSERT INTO events VALUES (?, ?)\", (row[\"event_id\"], int(row[\"amount\"])))\n                    connection.commit()\n                    if index == fail_after:\n                        raise RuntimeError(\"injected interruption\")\n        return connection.execute(\"SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM events\").fetchone()\n    finally:\n        connection.close()\n"
+      }
+    },
+    "trust": "synthetic-trusted"
+  }
+]
